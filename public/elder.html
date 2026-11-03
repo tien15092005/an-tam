@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>An Tâm</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1f7a5c">
+  <link rel="icon" href="/icon.svg">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body class="elder">
+  <div class="e-wrap">
+    <div class="e-top">
+      <div>
+        <div class="e-hello" id="hello">Xin chào</div>
+        <div class="e-date" id="date"></div>
+      </div>
+      <div class="e-clock" id="clock">--:--</div>
+    </div>
+
+    <div class="e-hero" id="hero"></div>
+
+    <div class="e-list">
+      <h3>Thuốc hôm nay</h3>
+      <div id="doses"></div>
+    </div>
+
+    <div class="e-actions">
+      <a class="e-btn call" id="call-btn" hidden>📞 <span></span></a>
+      <button class="e-btn help" id="help-btn">🆘 Tôi thấy không khỏe</button>
+    </div>
+
+    <div class="e-foot">
+      <button id="test-voice">Nghe thử giọng nhắc</button>
+      <button id="logout-btn">Đăng xuất</button>
+    </div>
+  </div>
+
+  <!-- Lần đầu: xin quyền thông báo + micro -->
+  <div class="e-overlay" id="setup" hidden>
+    <div class="inner">
+      <div style="font-size:80px">🔔</div>
+      <h1>Cho phép nhắc uống thuốc</h1>
+      <p>Bấm nút bên dưới, rồi chọn <b>“Cho phép”</b> khi điện thoại hỏi về <b>thông báo</b> và <b>micro</b>.</p>
+      <button class="e-btn ok" id="setup-btn">Đồng ý</button>
+    </div>
+  </div>
+
+  <!-- Mỗi lần mở app: cần một lần chạm để trình duyệt cho phát âm thanh -->
+  <div class="e-overlay" id="tap" hidden>
+    <div class="inner">
+      <div style="font-size:80px">👆</div>
+      <h1>Chạm vào đây để bắt đầu</h1>
+      <button class="e-btn ok" id="tap-btn">Bắt đầu</button>
+    </div>
+  </div>
+
+  <!-- Báo đến giờ uống thuốc -->
+  <div class="e-overlay e-alarm" id="alarm" hidden>
+    <div class="inner">
+      <div class="bell">🔔</div>
+      <h1>Đến giờ uống thuốc</h1>
+      <div id="alarm-meds"></div>
+      <div class="btns">
+        <button class="e-btn ok" id="taken-btn">✓ ĐÃ UỐNG RỒI</button>
+        <button class="e-btn later" id="snooze-btn">Nhắc lại sau 10 phút</button>
+      </div>
+      <div class="e-listen" id="listen"></div>
+    </div>
+  </div>
+
+  <!-- Xác nhận báo cho con -->
+  <div class="e-overlay" id="help" hidden>
+    <div class="inner">
+      <div style="font-size:80px">🆘</div>
+      <h1>Báo cho con biết bạn đang không khỏe?</h1>
+      <div class="btns" style="display:grid;gap:14px;margin-top:18px">
+        <button class="e-btn" id="help-yes" style="background:var(--danger)">Có, báo cho con</button>
+        <button class="e-btn no" id="help-no">Không</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/common.js"></script>
+  <script src="/elder.js"></script>
+</body>
+</html>

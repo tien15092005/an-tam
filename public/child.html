@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>An Tâm – Theo dõi bố mẹ</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1f7a5c">
+  <link rel="icon" href="/icon.svg">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="logo"><img src="/icon.svg" alt="">An Tâm</div>
+    <div class="row">
+      <span class="who hint" id="me-name"></span>
+      <button class="btn sm" id="notif-btn" hidden>🔔 Bật thông báo</button>
+      <button class="btn sm" id="logout-btn">Đăng xuất</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <h3>Bố mẹ của bạn</h3>
+      <div id="elder-list"></div>
+      <button class="btn primary" id="add-elder" style="width:100%">+ Thêm bố / mẹ</button>
+    </aside>
+    <main id="main"><div class="empty">Đang tải…</div></main>
+  </div>
+
+  <dialog id="dlg"></dialog>
+
+  <script src="/common.js"></script>
+  <script src="/child.js"></script>
+</body>
+</html>
