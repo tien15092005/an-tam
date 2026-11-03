@@ -41,12 +41,44 @@ function chime() {
 }
 
 function viVoice() {
+  if (!('speechSynthesis' in window)) return null;
   const voices = speechSynthesis.getVoices();
   return voices.find(v => /^vi/i.test(v.lang) && /google|natural|online/i.test(v.name))
       || voices.find(v => /^vi/i.test(v.lang));
 }
 
-function speak(text, onEnd) {
+// Thứ tự ưu tiên: giọng Google từ server (chuẩn nhất) -> giọng tiếng Việt của máy -> giọng mặc định
+let ttsServer = false, currentAudio = null, speakSeq = 0;
+
+function stopSpeaking() {
+  speakSeq++;
+  if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+  try { speechSynthesis.cancel(); } catch {}
+}
+
+async function speak(text, onEnd) {
+  stopSpeaking();
+  const my = speakSeq;
+  if (ttsServer) {
+    try {
+      const blob = await API.audio(text);
+      if (my !== speakSeq) return; // đã có câu mới thay thế
+      const a = new Audio(URL.createObjectURL(blob));
+      currentAudio = a;
+      const done = () => { URL.revokeObjectURL(a.src); if (currentAudio === a) currentAudio = null; onEnd?.(); };
+      a.onended = done;
+      a.onerror = done;
+      await a.play();
+      return;
+    } catch (ex) {
+      console.warn('Giọng Google lỗi, dùng giọng của máy:', ex.message);
+      if (my !== speakSeq) return;
+    }
+  }
+  speakDevice(text, onEnd);
+}
+
+function speakDevice(text, onEnd) {
   if (!('speechSynthesis' in window)) { onEnd?.(); return; }
   speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
@@ -58,7 +90,11 @@ function speak(text, onEnd) {
   u.onerror = () => onEnd?.();
   speechSynthesis.speak(u);
 }
-if ('speechSynthesis' in window) speechSynthesis.onvoiceschanged = () => {};
+// Cảnh báo cho người con lúc cài đặt nếu không có giọng tiếng Việt nào (sẽ đọc như đánh vần)
+function updateVoiceWarning() {
+  $('#voice-warn').hidden = ttsServer || !!viVoice();
+}
+if ('speechSynthesis' in window) speechSynthesis.onvoiceschanged = updateVoiceWarning;
 
 // Nghe người già nói "đã uống" để xác nhận bằng giọng nói
 function listen() {
@@ -80,6 +116,7 @@ function listen() {
 }
 
 function stopListening() {
+  if (!recog) return;
   try { recog?.abort(); } catch {}
   recog = null;
 }
@@ -93,6 +130,8 @@ async function refresh() {
     contacts = data.contacts;
     doses = data.doses;
     grace = data.grace_minutes;
+    ttsServer = data.tts;
+    updateVoiceWarning();
     render();
     tick();
   } catch (ex) {

@@ -4,6 +4,7 @@ Backend thuần Python (chỉ dùng thư viện chuẩn): HTTP server + SQLite.
 
 Chạy:  python server.py          (mặc định cổng 8000)
 """
+import base64
 import hashlib
 import hmac
 import json
@@ -18,9 +19,29 @@ import time as _time
 import traceback
 from datetime import date, datetime, timedelta
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, urlparse
+from urllib.request import Request, urlopen
+
+from prescription import parse_prescription
 
 BASE = os.path.dirname(os.path.abspath(__file__))
+
+
+def load_env_file(path):
+    """Đọc file .env (KEY=VALUE mỗi dòng) để khỏi phải đặt biến môi trường mỗi lần chạy."""
+    if not os.path.exists(path):
+        return
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
+
+
+load_env_file(os.path.join(BASE, ".env"))
+
 PUBLIC = os.path.join(BASE, "public")
 DB_PATH = os.environ.get("CAREAPP_DB", os.path.join(BASE, "careapp.db"))
 PORT = int(os.environ.get("PORT", "8000"))
@@ -29,6 +50,14 @@ GRACE_MIN = 60  # quá giờ uống bao nhiêu phút mà chưa xác nhận thì 
 EMAIL_RE = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
 TIME_RE = re.compile(r"([01]\d|2[0-3]):[0-5]\d")
 HEALTH_TYPES = {"bp", "hr", "sugar", "weight", "temp", "spo2"}
+
+# Giọng đọc tiếng Việt chuẩn bằng Google Cloud Text-to-Speech (tùy chọn).
+# Không có key thì trình duyệt dùng giọng có sẵn trên máy.
+# Một key Google Cloud dùng chung cho giọng đọc (Text-to-Speech) và đọc ảnh toa thuốc (Vision OCR).
+GOOGLE_TTS_KEY = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GOOGLE_TTS_API_KEY", "")
+TTS_VOICE = os.environ.get("GOOGLE_TTS_VOICE", "vi-VN-Wavenet-A")
+TTS_RATE = float(os.environ.get("GOOGLE_TTS_RATE", "0.9"))
+TTS_CACHE = os.path.join(BASE, "tts_cache")
 
 SCHEMA_PATH = os.path.join(BASE, "database", "schema.sql")
 
@@ -140,6 +169,54 @@ def note_fail(ip):
 
 # ---------------------------------------------------------------- dose logic
 
+def live_status(due, now):
+    if now > due + timedelta(minutes=GRACE_MIN):
+        return "missed"
+    if now >= due:
+        return "due"
+    return "upcoming"
+
+
+def in_date_range(row, day):
+    d = day.isoformat()
+    return (not row["start_date"] or row["start_date"] <= d) and (not row["end_date"] or d <= row["end_date"])
+
+
+def parse_date(value, field="date", required=False):
+    value = (value or "").strip() if isinstance(value, str) else value
+    if not value:
+        if required:
+            raise ApiError(400, f"Thiếu {field}")
+        return None
+    try:
+        return date.fromisoformat(value).isoformat()
+    except (TypeError, ValueError):
+        raise ApiError(400, f"Ngày không hợp lệ: {value}")
+
+
+def exercises_for_day(db, elder_id, day, now=None):
+    """Lịch tập thể dục trong một ngày: done / missed / due / upcoming."""
+    now = now or datetime.now()
+    logs = {r["exercise_id"]: r for r in db.execute(
+        "SELECT * FROM exercise_logs WHERE elder_id=? AND date=?", (elder_id, day.isoformat()))}
+    out = []
+    for e in db.execute("SELECT * FROM exercises WHERE elder_id=? ORDER BY time", (elder_id,)):
+        log = logs.get(e["id"])
+        if not log and (not e["active"] or not in_date_range(e, day)
+                        or day.isoweekday() not in json.loads(e["days"])):
+            continue
+        due = datetime.combine(day, datetime.strptime(e["time"], "%H:%M").time())
+        if not log and not e["start_date"] and due < datetime.fromisoformat(e["created_at"]).replace(second=0):
+            continue
+        out.append({
+            "exercise_id": e["id"], "title": e["title"], "duration_min": e["duration_min"], "note": e["note"],
+            "date": day.isoformat(), "time": e["time"],
+            "status": "done" if log else live_status(due, now),
+            "logged_at": log["logged_at"] if log else None,
+        })
+    return out
+
+
 def doses_for_day(db, elder_id, day, now=None):
     """Danh sách các lần uống thuốc trong một ngày kèm trạng thái:
     taken / skipped / missed (quá giờ chưa uống) / due (đang đến giờ) / upcoming."""
@@ -153,21 +230,17 @@ def doses_for_day(db, elder_id, day, now=None):
         logs[(r["med_id"], r["time"])] = r
     out = []
     for m in meds:
+        if not in_date_range(m, day):
+            continue
         created = datetime.fromisoformat(m["created_at"]).replace(second=0, microsecond=0)
         ended = datetime.fromisoformat(m["ended_at"]) if m["ended_at"] else None
         for t in json.loads(m["times"]):
             due = datetime.combine(day, datetime.strptime(t, "%H:%M").time())
             log = logs.get((m["id"], t))
-            if not log and (due < created or (ended and due >= ended)):
+            # Lịch đặt trước cho một ngày (start_date) thì tính từ ngày đó, không phụ thuộc lúc tạo
+            if not log and ((due < created and not m["start_date"]) or (ended and due >= ended)):
                 continue
-            if log:
-                status = log["status"]
-            elif now > due + timedelta(minutes=GRACE_MIN):
-                status = "missed"
-            elif now >= due:
-                status = "due"
-            else:
-                status = "upcoming"
+            status = log["status"] if log else live_status(due, now)
             out.append({
                 "med_id": m["id"], "name": m["name"], "dosage": m["dosage"], "note": m["note"],
                 "date": day.isoformat(), "time": t, "status": status,
@@ -419,11 +492,21 @@ def list_meds(c):
 def create_med(c):
     e = elder_for_child(c, c.params[0])
     b = c.body
+    start, end = date_range_from(b)
     cur = c.db.execute(
-        "INSERT INTO medications(elder_id,name,dosage,note,times,created_at) VALUES (?,?,?,?,?,?)",
+        "INSERT INTO medications(elder_id,name,dosage,note,times,start_date,end_date,created_at) "
+        "VALUES (?,?,?,?,?,?,?,?)",
         (e["id"], text(b, "name", required=True, maxlen=100), text(b, "dosage", maxlen=100),
-         text(b, "note", maxlen=300), json.dumps(parse_times(b.get("times"))), now_iso()))
+         text(b, "note", maxlen=300), json.dumps(parse_times(b.get("times"))), start, end, now_iso()))
     return {"id": cur.lastrowid}
+
+
+def date_range_from(b):
+    start = parse_date(b.get("start_date"), "ngày bắt đầu")
+    end = parse_date(b.get("end_date"), "ngày kết thúc")
+    if start and end and end < start:
+        raise ApiError(400, "Ngày kết thúc phải sau ngày bắt đầu")
+    return start, end
 
 
 def med_for_child(c, med_id):
@@ -438,9 +521,10 @@ def med_for_child(c, med_id):
 def update_med(c):
     m = med_for_child(c, c.params[0])
     b = c.body
-    c.db.execute("UPDATE medications SET name=?, dosage=?, note=?, times=? WHERE id=?",
+    start, end = date_range_from(b)
+    c.db.execute("UPDATE medications SET name=?, dosage=?, note=?, times=?, start_date=?, end_date=? WHERE id=?",
                  (text(b, "name", required=True, maxlen=100), text(b, "dosage", maxlen=100),
-                  text(b, "note", maxlen=300), json.dumps(parse_times(b.get("times"))), m["id"]))
+                  text(b, "note", maxlen=300), json.dumps(parse_times(b.get("times"))), start, end, m["id"]))
 
 
 @api("DELETE", r"/api/medications/(\d+)", ("child",))
@@ -448,6 +532,113 @@ def delete_med(c):
     m = med_for_child(c, c.params[0])
     # Xóa mềm để lịch sử cũ vẫn còn
     c.db.execute("UPDATE medications SET active=0, ended_at=? WHERE id=?", (now_iso(), m["id"]))
+
+
+def parse_days(raw):
+    if not isinstance(raw, list) or not raw:
+        raise ApiError(400, "Chọn ít nhất một ngày trong tuần")
+    try:
+        days = sorted({int(d) for d in raw})
+    except (TypeError, ValueError):
+        raise ApiError(400, "Ngày trong tuần không hợp lệ")
+    if any(d < 1 or d > 7 for d in days):
+        raise ApiError(400, "Ngày trong tuần phải từ 1 (Thứ 2) đến 7 (Chủ nhật)")
+    return days
+
+
+def exercise_fields(b):
+    t = text(b, "time", required=True, maxlen=5)
+    if not TIME_RE.fullmatch(t):
+        raise ApiError(400, f"Giờ không hợp lệ: {t}")
+    try:
+        duration = max(1, min(int(b.get("duration_min") or 30), 600))
+    except (TypeError, ValueError):
+        raise ApiError(400, "Thời lượng không hợp lệ")
+    start, end = date_range_from(b)
+    return (text(b, "title", required=True, maxlen=100), t, json.dumps(parse_days(b.get("days"))),
+            duration, text(b, "note", maxlen=300), start, end)
+
+
+@api("GET", r"/api/elders/(\d+)/exercises", ("child",))
+def list_exercises(c):
+    e = elder_for_child(c, c.params[0])
+    rows = c.db.execute("SELECT * FROM exercises WHERE elder_id=? AND active=1 ORDER BY time", (e["id"],))
+    return [{**dict(r), "days": json.loads(r["days"])} for r in rows]
+
+
+@api("POST", r"/api/elders/(\d+)/exercises", ("child",))
+def create_exercise(c):
+    e = elder_for_child(c, c.params[0])
+    cur = c.db.execute(
+        "INSERT INTO exercises(elder_id,title,time,days,duration_min,note,start_date,end_date,created_at) "
+        "VALUES (?,?,?,?,?,?,?,?,?)", (e["id"], *exercise_fields(c.body), now_iso()))
+    return {"id": cur.lastrowid}
+
+
+def exercise_for_child(c, ex_id):
+    x = c.db.execute("SELECT * FROM exercises WHERE id=? AND active=1", (int(ex_id),)).fetchone()
+    if not x:
+        raise ApiError(404, "Không tìm thấy lịch tập")
+    elder_for_child(c, x["elder_id"])
+    return x
+
+
+@api("PUT", r"/api/exercises/(\d+)", ("child",))
+def update_exercise(c):
+    x = exercise_for_child(c, c.params[0])
+    c.db.execute("UPDATE exercises SET title=?, time=?, days=?, duration_min=?, note=?, start_date=?, end_date=? "
+                 "WHERE id=?", (*exercise_fields(c.body), x["id"]))
+
+
+@api("DELETE", r"/api/exercises/(\d+)", ("child",))
+def delete_exercise(c):
+    x = exercise_for_child(c, c.params[0])
+    c.db.execute("UPDATE exercises SET active=0 WHERE id=?", (x["id"],))
+
+
+def mark_exercise(db, elder_id, body, user, allow_past_days):
+    try:
+        ex_id = int(body.get("exercise_id"))
+    except (TypeError, ValueError):
+        raise ApiError(400, "Thiếu lịch tập cần đánh dấu")
+    day_s = parse_date(body.get("date")) or date.today().isoformat()
+    if day_s > date.today().isoformat() or (date.today() - date.fromisoformat(day_s)).days > allow_past_days:
+        raise ApiError(400, "Không thể đánh dấu cho ngày này")
+    if not db.execute("SELECT 1 FROM exercises WHERE id=? AND elder_id=?", (ex_id, elder_id)).fetchone():
+        raise ApiError(404, "Không tìm thấy lịch tập")
+    status = text(body, "status", required=True, maxlen=10)
+    if status == "clear":
+        db.execute("DELETE FROM exercise_logs WHERE exercise_id=? AND date=?", (ex_id, day_s))
+    elif status == "done":
+        db.execute("INSERT INTO exercise_logs(exercise_id,elder_id,date,logged_at,logged_by) VALUES (?,?,?,?,?) "
+                   "ON CONFLICT(exercise_id,date) DO UPDATE SET logged_at=excluded.logged_at, "
+                   "logged_by=excluded.logged_by", (ex_id, elder_id, day_s, now_iso(), user["id"]))
+    else:
+        raise ApiError(400, "Trạng thái không hợp lệ")
+
+
+@api("POST", r"/api/elders/(\d+)/exercise-logs", ("child",))
+def child_mark_exercise(c):
+    e = elder_for_child(c, c.params[0])
+    mark_exercise(c.db, e["id"], c.body, c.user, allow_past_days=7)
+
+
+@api("GET", r"/api/elders/(\d+)/calendar", ("child",))
+def elder_calendar(c):
+    """Lịch theo ngày (thuốc + tập thể dục) cho màn hình lịch tuần/tháng."""
+    e = elder_for_child(c, c.params[0])
+    start = date.fromisoformat(parse_date(c.query.get("from"), "from", required=True))
+    end = date.fromisoformat(parse_date(c.query.get("to"), "to", required=True))
+    if end < start or (end - start).days > 62:
+        raise ApiError(400, "Khoảng ngày không hợp lệ (tối đa 62 ngày)")
+    out = []
+    day = start
+    while day <= end:
+        doses = doses_for_day(c.db, e["id"], day)
+        exs = exercises_for_day(c.db, e["id"], day)
+        out.append({"date": day.isoformat(), "doses": doses, "exercises": exs, "summary": summarize(doses)})
+        day += timedelta(days=1)
+    return out
 
 
 @api("GET", r"/api/elders/(\d+)/today", ("child",))
@@ -539,7 +730,112 @@ def elder_self_today(c):
         "WHERE f.elder_id=? AND u.active=1 ORDER BY u.id", (c.user["id"],)).fetchall()
     return {"me": elder_public(c.user, include_code=False), "grace_minutes": GRACE_MIN,
             "server_time": now_iso(), "doses": doses_for_day(c.db, c.user["id"], date.today()),
-            "contacts": [dict(x) for x in contacts]}
+            "exercises": exercises_for_day(c.db, c.user["id"], date.today()),
+            "contacts": [dict(x) for x in contacts], "tts": bool(GOOGLE_TTS_KEY)}
+
+
+@api("GET", r"/api/elder/schedule", ("elder",))
+def elder_schedule(c):
+    """Các lần nhắc sắp tới (chưa xác nhận) để app đặt thông báo cục bộ - nhắc cả khi app đã đóng."""
+    days = max(1, min(int(c.query.get("days", "3") or 3), 7))
+    now = datetime.now()
+    out = []
+    for i in range(days):
+        day = date.today() + timedelta(days=i)
+        for d in doses_for_day(c.db, c.user["id"], day, now):
+            if d["status"] in ("upcoming", "due"):
+                out.append({"kind": "dose", "date": d["date"], "time": d["time"], "id": d["med_id"],
+                            "title": d["name"], "detail": d["dosage"] or ""})
+        for x in exercises_for_day(c.db, c.user["id"], day, now):
+            if x["status"] in ("upcoming", "due"):
+                out.append({"kind": "exercise", "date": x["date"], "time": x["time"], "id": x["exercise_id"],
+                            "title": x["title"], "detail": f"{x['duration_min']} phút"})
+    out.sort(key=lambda r: (r["date"], r["time"]))
+    return out
+
+
+@api("POST", r"/api/elder/exercises", ("elder",))
+def elder_mark_exercise(c):
+    mark_exercise(c.db, c.user["id"], c.body, c.user, allow_past_days=0)
+
+
+# ---------- OCR toa thuốc
+
+@api("POST", r"/api/ocr/parse", ("child",))
+def ocr_parse(c):
+    """Tách danh sách thuốc từ văn bản toa thuốc (dán tay hoặc kết quả OCR)."""
+    return {"items": parse_prescription(text(c.body, "text", required=True, maxlen=20000))}
+
+
+@api("POST", r"/api/ocr/image", ("child",))
+def ocr_image(c):
+    """Đọc chữ trên ảnh toa thuốc bằng Google Cloud Vision rồi tách danh sách thuốc."""
+    if not GOOGLE_TTS_KEY:
+        raise ApiError(503, "Chưa cấu hình GOOGLE_API_KEY nên chưa đọc được ảnh. Bạn có thể dán chữ trên toa vào ô văn bản.")
+    img = str(c.body.get("image_base64") or "")
+    if not img:
+        raise ApiError(400, "Thiếu ảnh")
+    payload = {"requests": [{
+        "image": {"content": img.split(",", 1)[-1]},
+        "features": [{"type": "DOCUMENT_TEXT_DETECTION"}],
+        "imageContext": {"languageHints": ["vi"]},
+    }]}
+    req = Request("https://vision.googleapis.com/v1/images:annotate", data=json.dumps(payload).encode(),
+                  method="POST", headers={"Content-Type": "application/json", "X-Goog-Api-Key": GOOGLE_TTS_KEY})
+    try:
+        with urlopen(req, timeout=30) as r:
+            res = json.loads(r.read())["responses"][0]
+    except HTTPError as e:
+        print("Google Vision lỗi:", e.code, e.read().decode(errors="replace")[:300], flush=True)
+        raise ApiError(502, "Dịch vụ đọc ảnh của Google báo lỗi (xem log server)")
+    except (URLError, TimeoutError, KeyError, ValueError, IndexError):
+        raise ApiError(502, "Không kết nối được dịch vụ đọc ảnh")
+    if "error" in res:
+        raise ApiError(502, "Google không đọc được ảnh: " + res["error"].get("message", ""))
+    full = res.get("fullTextAnnotation", {}).get("text", "")
+    if not full.strip():
+        raise ApiError(422, "Không thấy chữ trong ảnh. Hãy chụp rõ, đủ sáng và thẳng toa thuốc.")
+    return {"text": full, "items": parse_prescription(full)}
+
+
+class RawResponse:
+    def __init__(self, data, content_type):
+        self.data = data
+        self.content_type = content_type
+
+
+@api("POST", r"/api/tts", ANY)
+def tts(c):
+    """Đổi câu tiếng Việt thành file MP3 qua Google Cloud TTS, lưu cache để câu lặp lại không tốn phí."""
+    if not GOOGLE_TTS_KEY:
+        raise ApiError(503, "Chưa cấu hình GOOGLE_TTS_API_KEY")
+    text_in = text(c.body, "text", required=True, maxlen=500)
+    digest = hashlib.sha1(f"{TTS_VOICE}|{TTS_RATE}|{text_in}".encode()).hexdigest()
+    path = os.path.join(TTS_CACHE, digest + ".mp3")
+    if os.path.exists(path):
+        with open(path, "rb") as f:
+            return RawResponse(f.read(), "audio/mpeg")
+    payload = {
+        "input": {"text": text_in},
+        "voice": {"languageCode": "vi-VN", "name": TTS_VOICE},
+        "audioConfig": {"audioEncoding": "MP3", "speakingRate": TTS_RATE},
+    }
+    req = Request("https://texttospeech.googleapis.com/v1/text:synthesize",
+                  data=json.dumps(payload).encode(), method="POST",
+                  headers={"Content-Type": "application/json", "X-Goog-Api-Key": GOOGLE_TTS_KEY})
+    try:
+        with urlopen(req, timeout=15) as r:
+            audio = base64.b64decode(json.loads(r.read())["audioContent"])
+    except HTTPError as e:
+        detail = e.read().decode(errors="replace")[:300]
+        print("Google TTS lỗi:", e.code, detail, flush=True)
+        raise ApiError(502, "Dịch vụ giọng đọc Google báo lỗi (xem log server)")
+    except (URLError, TimeoutError, KeyError, ValueError):
+        raise ApiError(502, "Không kết nối được dịch vụ giọng đọc")
+    os.makedirs(TTS_CACHE, exist_ok=True)
+    with open(path, "wb") as f:
+        f.write(audio)
+    return RawResponse(audio, "audio/mpeg")
 
 
 @api("POST", r"/api/elder/doses", ("elder",))
@@ -633,6 +929,11 @@ class Handler(SimpleHTTPRequestHandler):
 
     def end_headers(self):
         self.send_header("Cache-Control", "no-store")
+        if self.path.startswith("/api/"):
+            # Cho phép app Expo chạy thử trên web (khác cổng) gọi API. Xác thực bằng token, không dùng cookie.
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
         super().end_headers()
 
     def log_message(self, fmt, *args):
@@ -659,6 +960,10 @@ class Handler(SimpleHTTPRequestHandler):
     def do_DELETE(self):
         self.route("DELETE")
 
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self.end_headers()
+
     def route(self, method):
         url = urlparse(self.path)
         if not url.path.startswith("/api/"):
@@ -674,7 +979,7 @@ class Handler(SimpleHTTPRequestHandler):
                 body = {}
                 length = int(self.headers.get("Content-Length") or 0)
                 if length:
-                    if length > 1_000_000:
+                    if length > 12_000_000:  # ảnh toa thuốc gửi dạng base64
                         raise ApiError(413, "Dữ liệu quá lớn")
                     body = json.loads(self.rfile.read(length) or b"{}")
                     if not isinstance(body, dict):
@@ -686,7 +991,14 @@ class Handler(SimpleHTTPRequestHandler):
                         raise ApiError(403, "Bạn không có quyền thực hiện thao tác này")
                 result = fn(c)
                 db.commit()
-                self.send_json({"ok": True} if result is None else result)
+                if isinstance(result, RawResponse):
+                    self.send_response(200)
+                    self.send_header("Content-Type", result.content_type)
+                    self.send_header("Content-Length", str(len(result.data)))
+                    self.end_headers()
+                    self.wfile.write(result.data)
+                else:
+                    self.send_json({"ok": True} if result is None else result)
             except ApiError as e:
                 db.rollback()
                 self.send_json({"error": e.msg}, e.status)
@@ -709,6 +1021,11 @@ def init_db():
     db = connect()
     with open(SCHEMA_PATH, encoding="utf-8") as f:
         db.executescript(f.read())
+    # Nâng cấp CSDL tạo từ phiên bản cũ (chưa có ngày bắt đầu/kết thúc cho thuốc)
+    med_cols = {r[1] for r in db.execute("PRAGMA table_info(medications)")}
+    for col in ("start_date", "end_date"):
+        if col not in med_cols:
+            db.execute(f"ALTER TABLE medications ADD COLUMN {col} TEXT")
     if not db.execute("SELECT 1 FROM users LIMIT 1").fetchone():
         seed_demo(db)
     db.commit()
@@ -740,6 +1057,15 @@ def seed_demo(db):
                 if rnd.random() < 0.85:
                     db.execute("INSERT INTO dose_logs(med_id,elder_id,date,time,status,logged_at,logged_by) "
                                "VALUES (?,?,?,?,?,?,?)", (mid, elder, day, t, "taken", f"{day}T{t}:00", elder))
+    for title, t, days, minutes, note in [("Đi bộ công viên", "06:00", [1, 2, 3, 4, 5, 6, 7], 30, "Đi chậm, mang theo nước"),
+                                          ("Tập dưỡng sinh", "16:30", [2, 4, 6], 45, "")]:
+        xid = db.execute("INSERT INTO exercises(elder_id,title,time,days,duration_min,note,created_at) "
+                         "VALUES (?,?,?,?,?,?,?)", (elder, title, t, json.dumps(days), minutes, note, week_ago)).lastrowid
+        for i in range(1, 7):
+            day = now - timedelta(days=i)
+            if day.isoweekday() in days and rnd.random() < 0.7:
+                db.execute("INSERT INTO exercise_logs(exercise_id,elder_id,date,logged_at,logged_by) VALUES (?,?,?,?,?)",
+                           (xid, elder, day.date().isoformat(), f"{day.date().isoformat()}T{t}:00", elder))
     for i in range(7, 0, -1):
         at = (now - timedelta(days=i)).replace(hour=8, minute=0, second=0).isoformat(timespec="seconds")
         db.execute("INSERT INTO health_records(elder_id,type,value,value2,recorded_at,recorded_by) VALUES (?,?,?,?,?,?)",

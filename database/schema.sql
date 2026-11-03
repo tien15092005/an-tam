@@ -41,6 +41,8 @@ CREATE TABLE IF NOT EXISTS medications (
   dosage      TEXT,
   note        TEXT,
   times       TEXT NOT NULL,
+  start_date  TEXT,                       -- 'YYYY-MM-DD', NULL = từ lúc tạo
+  end_date    TEXT,                       -- 'YYYY-MM-DD', NULL = dùng lâu dài (vd: toa 7 ngày)
   active      INTEGER NOT NULL DEFAULT 1, -- xóa mềm để giữ lịch sử
   created_at  TEXT NOT NULL,
   ended_at    TEXT
@@ -81,7 +83,34 @@ CREATE TABLE IF NOT EXISTS alerts (
   resolved    INTEGER NOT NULL DEFAULT 0
 );
 
+-- Lịch tập thể dục. days = mảng JSON các thứ trong tuần, 1 = Thứ 2 ... 7 = Chủ nhật
+CREATE TABLE IF NOT EXISTS exercises (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  elder_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title        TEXT NOT NULL,             -- vd: "Đi bộ", "Dưỡng sinh"
+  time         TEXT NOT NULL,             -- 'HH:MM'
+  days         TEXT NOT NULL,
+  duration_min INTEGER NOT NULL DEFAULT 30,
+  note         TEXT,
+  start_date   TEXT,
+  end_date     TEXT,
+  active       INTEGER NOT NULL DEFAULT 1,
+  created_at   TEXT NOT NULL
+);
+
+-- Những buổi tập đã hoàn thành
+CREATE TABLE IF NOT EXISTS exercise_logs (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  exercise_id  INTEGER NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
+  elder_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  date         TEXT NOT NULL,
+  logged_at    TEXT NOT NULL,
+  logged_by    INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  UNIQUE(exercise_id, date)
+);
+
 CREATE INDEX IF NOT EXISTS idx_dose_logs_elder_date ON dose_logs(elder_id, date);
 CREATE INDEX IF NOT EXISTS idx_health_elder_time   ON health_records(elder_id, recorded_at);
 CREATE INDEX IF NOT EXISTS idx_meds_elder          ON medications(elder_id);
 CREATE INDEX IF NOT EXISTS idx_alerts_elder        ON alerts(elder_id, resolved);
+CREATE INDEX IF NOT EXISTS idx_exercises_elder       ON exercises(elder_id);

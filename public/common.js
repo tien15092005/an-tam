@@ -24,6 +24,16 @@ const API = {
     if (!res.ok) throw new Error(data.error || 'Có lỗi xảy ra');
     return data;
   },
+  // Lấy file MP3 giọng đọc tiếng Việt từ server (Google TTS)
+  async audio(text) {
+    const res = await fetch('/api/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + store.get('antam_token') },
+      body: JSON.stringify({ text }),
+    });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Lỗi giọng đọc');
+    return res.blob();
+  },
   get(p) { return this.req('GET', p); },
   post(p, b) { return this.req('POST', p, b || {}); },
   put(p, b) { return this.req('PUT', p, b || {}); },
