@@ -7,3 +7,21 @@ __pycache__/
 *.zip
 tts_cache/
 .env
+
+# Bí mật
+google-services.json
+GoogleService-Info.plist
+*service-account*.json
+*.jks
+*.keystore
+.env.*
+!.env.example
+
+# Flutter (app/ có .gitignore riêng khi tạo project)
+# Backend Java
+backend/target/
+backend/build/
+backend/.gradle/
+# AI service
+ai-service/.venv/
+ai-service/.pytest_cache/
