@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/network/api_client.dart';
 import '../../core/theme/tokens.dart';
+import '../care/care_api.dart';
 import 'code_dialog.dart';
 import 'groups_api.dart';
 
@@ -19,7 +20,11 @@ class GroupDetailScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: Text(detail.value?.name ?? 'Nhóm')),
       body: RefreshIndicator(
-        onRefresh: () => ref.refresh(groupDetailProvider(groupId).future),
+        onRefresh: () async {
+          ref.invalidate(openAlertsProvider(groupId));
+          ref.invalidate(groupDetailProvider(groupId));
+          await ref.read(groupDetailProvider(groupId).future);
+        },
         child: detail.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => ListView(padding: const EdgeInsets.all(AppSpacing.md), children: [Text(describeNetworkError(e))]),
@@ -89,6 +94,7 @@ class _GroupBody extends ConsumerWidget {
           label: Text(group.iAmOwner ? 'Bạn là trưởng nhóm' : 'Bạn là thành viên'),
         ),
         const SizedBox(height: AppSpacing.md),
+        OpenAlertsSection(groupId: group.id),
         Text('Bố mẹ', style: text.titleMedium),
         const SizedBox(height: AppSpacing.sm),
         if (elders.isEmpty) const Text('Chưa có hồ sơ bố mẹ.'),
@@ -97,7 +103,12 @@ class _GroupBody extends ConsumerWidget {
             child: ListTile(
               leading: const CircleAvatar(backgroundColor: AppColors.primarySoft, child: Icon(Icons.elderly, color: AppColors.primary)),
               title: Text(e.displayName),
-              subtitle: Text([if (e.birthYear != null) 'Sinh năm ${e.birthYear}', if (e.phone != null) e.phone!].join(' · ')),
+              subtitle: Text([
+                if (e.birthYear != null) 'Sinh năm ${e.birthYear}',
+                if (e.phone != null) e.phone!,
+                'Bấm để xem thuốc',
+              ].join(' · ')),
+              onTap: () => context.push('/groups/${group.id}/elders/${e.userId}/medications'),
               trailing: group.iAmOwner
                   ? TextButton(
                       onPressed: () => _run(context, ref, () async {

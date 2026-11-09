@@ -14,19 +14,19 @@ import java.util.List;
  * Persists scheduled alarms on the device so they can be re-armed after a reboot,
  * an app update or a time/time-zone change, without needing the backend.
  */
-final class AlarmStore {
+public final class AlarmStore {
 
     private static final String PREFS = "antam_alarms";
     private static final String KEY_ALARMS = "alarms";
-    private static final String KEY_RINGING = "ringing";
+    private static final String KEY_RINGING = "ringing_ids";
 
-    static final class Alarm {
-        final int id;
-        final long triggerAtMillis;
-        final String title;
-        final String speech;
+    public static final class Alarm {
+        public final int id;
+        public final long triggerAtMillis;
+        public final String title;
+        public final String speech;
 
-        Alarm(int id, long triggerAtMillis, String title, String speech) {
+        public Alarm(int id, long triggerAtMillis, String title, String speech) {
             this.id = id;
             this.triggerAtMillis = triggerAtMillis;
             this.title = title;
@@ -96,12 +96,24 @@ final class AlarmStore {
         prefs(context).edit().putString(KEY_ALARMS, array.toString()).apply();
     }
 
-    /** The alarm currently ringing, or -1. Lets the Flutter UI show the alarm screen after a cold start. */
-    static int ringingId(Context context) {
-        return prefs(context).getInt(KEY_RINGING, -1);
+    /** Alarms ringing now (several when a new one fires before the last was answered), oldest first. */
+    static synchronized List<Integer> ringingIds(Context context) {
+        List<Integer> ids = new ArrayList<>();
+        for (String part : prefs(context).getString(KEY_RINGING, "").split(",")) {
+            if (!part.isEmpty()) ids.add(Integer.parseInt(part));
+        }
+        return ids;
     }
 
-    static void setRinging(Context context, int id) {
-        prefs(context).edit().putInt(KEY_RINGING, id).apply();
+    static synchronized void addRinging(Context context, int id) {
+        List<Integer> ids = ringingIds(context);
+        if (!ids.contains(id)) ids.add(id);
+        StringBuilder sb = new StringBuilder();
+        for (int i : ids) sb.append(sb.length() == 0 ? "" : ",").append(i);
+        prefs(context).edit().putString(KEY_RINGING, sb.toString()).apply();
+    }
+
+    static synchronized void clearRinging(Context context) {
+        prefs(context).edit().remove(KEY_RINGING).apply();
     }
 }

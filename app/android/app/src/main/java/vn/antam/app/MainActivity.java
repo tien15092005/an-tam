@@ -33,6 +33,11 @@ public class MainActivity extends FlutterActivity {
 
     private MethodChannel channel;
 
+    /** Voice for the "any problem?" question and "read it to me" on the home screen (not the alarm loop). */
+    private TextToSpeech voice;
+    private boolean voiceReady;
+    private String pendingSpeech;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -93,6 +98,31 @@ public class MainActivity extends FlutterActivity {
                     result.success(null);
                     break;
                 }
+                case "replaceSchedule": {
+                    java.util.List<Map<String, Object>> raw = call.argument("alarms");
+                    java.util.List<vn.antam.app.alarm.AlarmStore.Alarm> alarms = new java.util.ArrayList<>();
+                    if (raw != null) {
+                        for (Map<String, Object> a : raw) {
+                            alarms.add(new vn.antam.app.alarm.AlarmStore.Alarm(((Number) a.get("id")).intValue(),
+                                    ((Number) a.get("triggerAtMillis")).longValue(), (String) a.get("title"), (String) a.get("speech")));
+                        }
+                    }
+                    AlarmScheduler.replaceSchedule(this, alarms);
+                    result.success(alarms.size());
+                    break;
+                }
+                case "scheduled": {
+                    java.util.List<Map<String, Object>> out = new java.util.ArrayList<>();
+                    for (vn.antam.app.alarm.AlarmStore.Alarm a : AlarmScheduler.all(this)) {
+                        Map<String, Object> m = new HashMap<>();
+                        m.put("id", a.id);
+                        m.put("triggerAtMillis", a.triggerAtMillis);
+                        m.put("title", a.title);
+                        out.add(m);
+                    }
+                    result.success(out);
+                    break;
+                }
                 case "cancel": {
                     Integer id = call.argument("id");
                     if (id != null) AlarmScheduler.cancel(this, id);
@@ -100,12 +130,32 @@ public class MainActivity extends FlutterActivity {
                     break;
                 }
                 case "stopRinging":
+                    AlarmScheduler.clearRinging(this);
                     AlarmService.stop(this);
                     clearLockScreenFlags();
                     result.success(null);
                     break;
                 case "ringingId":
                     result.success(AlarmScheduler.ringingId(this));
+                    break;
+                case "ringingIds":
+                    result.success(AlarmScheduler.ringingIds(this));
+                    break;
+                case "speak": {
+                    String text = call.argument("text");
+                    if (text != null) speakOnce(text);
+                    result.success(null);
+                    break;
+                }
+                case "holdSpeech": {
+                    Number ms = call.argument("ms");
+                    AlarmService.hold(this, ms == null ? 8000 : ms.longValue());
+                    result.success(null);
+                    break;
+                }
+                case "stopSpeaking":
+                    if (voice != null) voice.stop();
+                    result.success(null);
                     break;
                 case "readiness":
                     readiness(result);
@@ -136,6 +186,7 @@ public class MainActivity extends FlutterActivity {
         r.put("fullScreen", Build.VERSION.SDK_INT < 34 || (nm != null && nm.canUseFullScreenIntent()));
         android.os.PowerManager pm = getSystemService(android.os.PowerManager.class);
         r.put("batteryUnrestricted", pm != null && pm.isIgnoringBatteryOptimizations(getPackageName()));
+        r.put("microphone", checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED);
         // The voice can only be checked after the TTS engine has finished initialising, so answer in its callback.
         final TextToSpeech[] probe = new TextToSpeech[1];
         probe[0] = new TextToSpeech(this, status -> {
@@ -147,6 +198,40 @@ public class MainActivity extends FlutterActivity {
         });
     }
 
+    /** Speaks once on the alarm stream (audible even with media volume at 0); replaces anything still being said. */
+    private void speakOnce(String text) {
+        if (voice == null) {
+            pendingSpeech = text;
+            voice = new TextToSpeech(this, status -> {
+                if (status != TextToSpeech.SUCCESS) return;
+                int lang = voice.setLanguage(new Locale("vi", "VN"));
+                // Never read Vietnamese with an English voice (plan §9); the screen still shows the text.
+                voiceReady = lang != TextToSpeech.LANG_MISSING_DATA && lang != TextToSpeech.LANG_NOT_SUPPORTED;
+                voice.setAudioAttributes(new android.media.AudioAttributes.Builder()
+                        .setUsage(android.media.AudioAttributes.USAGE_ALARM)
+                        .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .build());
+                voice.setSpeechRate(0.9f);
+                if (pendingSpeech != null) speakOnce(pendingSpeech);
+                pendingSpeech = null;
+            });
+            return;
+        }
+        if (!voiceReady) {
+            pendingSpeech = text;
+            return;
+        }
+        Bundle params = new Bundle();
+        params.putInt(TextToSpeech.Engine.KEY_PARAM_STREAM, android.media.AudioManager.STREAM_ALARM);
+        voice.speak(text, TextToSpeech.QUEUE_FLUSH, params, "once-" + System.currentTimeMillis());
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (voice != null) voice.shutdown();
+        super.onDestroy();
+    }
+
     private void openSettings(String which) {
         Intent intent;
         Uri pkg = Uri.parse("package:" + getPackageName());
@@ -156,6 +241,8 @@ public class MainActivity extends FlutterActivity {
             intent = new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, pkg);
         } else if ("battery".equals(which)) {
             intent = new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
+        } else if ("microphone".equals(which)) {
+            intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, pkg);
         } else if ("tts".equals(which)) {
             intent = new Intent("com.android.settings.TTS_SETTINGS");
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

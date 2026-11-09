@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../core/config/server_config.dart';
+import '../../reminder/schedule_sync.dart';
+import '../groups/groups_api.dart';
 
 /// The signed-in account on this phone. Tokens live in Android's encrypted storage.
 class Session {
@@ -114,6 +116,13 @@ class SessionNotifier extends AsyncNotifier<Session?> {
   }
 
   Future<void> signOutLocally() async {
+    // Signed out (or replaced by a newly paired phone): this phone must stop reminding.
+    try {
+      await ref.read(elderScheduleProvider.notifier).clear();
+    } catch (_) {
+      // No saved schedule (caregiver phone, tests).
+    }
+    await forgetCachedMe(ref.read(sharedPreferencesProvider));
     await ref.read(sessionStoreProvider).clear();
     state = const AsyncData(null);
   }

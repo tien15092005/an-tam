@@ -9,8 +9,11 @@ import 'features/auth/login_screen.dart';
 import 'features/auth/session.dart';
 import 'features/auth/welcome_screen.dart';
 import 'features/elder/alarm_screen.dart';
+import 'features/elder/issue_question_screen.dart';
+import 'features/elder/readiness_screen.dart';
 import 'features/groups/group_detail_screen.dart';
 import 'features/home_gate.dart';
+import 'features/medications/medications_screen.dart';
 import 'features/spike/alarm_spike_screen.dart';
 import 'features/system/connection_screen.dart';
 import 'features/system/elder_preview_screen.dart';
@@ -35,10 +38,20 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
       GoRoute(path: '/pair', builder: (_, _) => const ElderPairScreen()),
       GoRoute(path: '/groups/:id', builder: (_, s) => GroupDetailScreen(groupId: int.parse(s.pathParameters['id']!))),
+      GoRoute(
+        path: '/groups/:id/elders/:elder/medications',
+        builder: (_, s) => MedicationsScreen(
+            groupId: int.parse(s.pathParameters['id']!), elderUserId: int.parse(s.pathParameters['elder']!)),
+      ),
       GoRoute(path: '/connection', builder: (_, _) => const ConnectionScreen()),
       GoRoute(path: '/preview/elder', builder: (_, _) => const ElderPreviewScreen()),
       GoRoute(path: '/spike/alarm', builder: (_, _) => const AlarmSpikeScreen()),
       GoRoute(path: '/alarm', builder: (_, _) => const AlarmScreen()),
+      GoRoute(
+        path: '/alarm/question',
+        builder: (_, s) => s.extra is QuestionArgs ? IssueQuestionScreen(args: s.extra! as QuestionArgs) : const HomeGate(),
+      ),
+      GoRoute(path: '/readiness', builder: (_, _) => const ReadinessScreen()),
     ],
     redirect: (context, state) async {
       final here = state.matchedLocation;

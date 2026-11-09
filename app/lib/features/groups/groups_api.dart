@@ -1,5 +1,10 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:convert';
 
+import 'package:dio/dio.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../core/config/server_config.dart';
 import '../../core/network/api_client.dart';
 
 enum GroupRole { owner, member, elder }
@@ -14,6 +19,8 @@ class GroupSummary {
 
   factory GroupSummary.fromJson(Map<String, dynamic> j) =>
       GroupSummary(j['id'] as int, j['name'] as String, _role(j['myRole'] as String));
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'myRole': myRole.name.toUpperCase()};
 }
 
 class GroupMember {
@@ -65,6 +72,9 @@ class Me {
         j['displayName'] as String,
         (j['groups'] as List).map((g) => GroupSummary.fromJson(g as Map<String, dynamic>)).toList(),
       );
+
+  Map<String, dynamic> toJson() =>
+      {'id': id, 'accountType': accountType, 'displayName': displayName, 'groups': groups.map((g) => g.toJson()).toList()};
 }
 
 class CodeResult {
@@ -114,7 +124,25 @@ class GroupsApi {
 
 final groupsApiProvider = Provider<GroupsApi>(GroupsApi.new);
 
-final meProvider = FutureProvider.autoDispose<Me>((ref) => ref.watch(groupsApiProvider).me());
+const _cachedMeKey = 'cached_me';
+
+/// Who is signed in. The last answer is kept on the phone so an elder whose phone is offline still
+/// lands on their home screen (and its saved medicines) instead of a network error.
+final meProvider = FutureProvider.autoDispose<Me>((ref) async {
+  final prefs = ref.read(sharedPreferencesProvider);
+  try {
+    final me = await ref.watch(groupsApiProvider).me();
+    await prefs.setString(_cachedMeKey, jsonEncode(me.toJson()));
+    return me;
+  } on DioException catch (e) {
+    final cached = prefs.getString(_cachedMeKey);
+    // Only fall back when the server could not be reached, never when it answered with an error.
+    if (e.response == null && cached != null) return Me.fromJson(jsonDecode(cached) as Map<String, dynamic>);
+    rethrow;
+  }
+});
+
+Future<void> forgetCachedMe(SharedPreferences prefs) => prefs.remove(_cachedMeKey);
 
 final groupDetailProvider =
     FutureProvider.autoDispose.family<GroupDetail, int>((ref, id) => ref.watch(groupsApiProvider).detail(id));

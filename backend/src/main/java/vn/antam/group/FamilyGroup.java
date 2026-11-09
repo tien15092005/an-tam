@@ -61,6 +61,11 @@ public class FamilyGroup {
         this.name = name;
     }
 
+    /** Any schedule change: the elder's phone compares versions to know it must re-download. */
+    public void bumpScheduleVersion() {
+        this.scheduleVersion++;
+    }
+
     public void delete(Instant now) {
         this.deletedAt = now;
     }

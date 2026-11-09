@@ -37,6 +37,7 @@ public class AlarmService extends Service {
     static final int NOTIFICATION_ID = 4711;
     static final String ACTION_RING = "vn.antam.app.alarm.RING";
     static final String ACTION_STOP = "vn.antam.app.alarm.STOP";
+    static final String ACTION_HOLD = "vn.antam.app.alarm.HOLD";
     static final long PAUSE_BETWEEN_READS_MS = 20_000;
 
     /** True while this process is ringing. A stored "ringing" id without a live service is stale. */
@@ -65,6 +66,15 @@ public class AlarmService extends Service {
         }
     }
 
+    /**
+     * Pauses the spoken reminder for [ms] while the elder answers by voice, so the microphone does not
+     * hear the phone itself. Vibration and the on-screen alarm continue; reading resumes afterwards.
+     */
+    public static void hold(Context context, long ms) {
+        if (!running) return;
+        context.startService(new Intent(context, AlarmService.class).setAction(ACTION_HOLD).putExtra("ms", ms));
+    }
+
     public static void stop(Context context) {
         context.startService(new Intent(context, AlarmService.class).setAction(ACTION_STOP));
     }
@@ -76,12 +86,19 @@ public class AlarmService extends Service {
             stopRinging();
             return START_NOT_STICKY;
         }
+        if (ACTION_HOLD.equals(intent.getAction())) {
+            handler.removeCallbacks(speakAgain);
+            if (tts != null) tts.stop();
+            if (alarmId >= 0) handler.postDelayed(speakAgain, Math.min(intent.getLongExtra("ms", 8000), 30_000));
+            return START_NOT_STICKY;
+        }
         alarmId = intent.getIntExtra(AlarmScheduler.EXTRA_ALARM_ID, -1);
         String title = intent.getStringExtra("title");
         speech = intent.getStringExtra("speech");
         startInForeground(buildNotification(title == null ? "Đến giờ uống thuốc" : title));
         running = true;
-        AlarmStore.setRinging(this, alarmId);
+        // A new alarm while one is still unanswered joins it: one screen, one voice, never two at once.
+        AlarmStore.addRinging(this, alarmId);
         bringAlarmScreenToFront();
         acquireWakeLock();
         startVibration();
@@ -235,7 +252,7 @@ public class AlarmService extends Service {
         Vibrator v = getSystemService(Vibrator.class);
         if (v != null) v.cancel();
         if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
-        AlarmStore.setRinging(this, -1);
+        AlarmStore.clearRinging(this);
         stopForeground(STOP_FOREGROUND_REMOVE);
         stopSelf();
     }

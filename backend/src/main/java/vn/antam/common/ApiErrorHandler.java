@@ -28,4 +28,13 @@ public class ApiErrorHandler {
         p.setProperty("field", field);
         return p;
     }
+
+    /** Malformed JSON or a value of the wrong type (e.g. an unknown enum): same problem format as other errors. */
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    ProblemDetail handle(org.springframework.http.converter.HttpMessageNotReadableException e) {
+        ProblemDetail p = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
+                "Dữ liệu gửi lên không đúng định dạng.");
+        p.setProperty("code", "validation");
+        return p;
+    }
 }

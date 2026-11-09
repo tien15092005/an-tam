@@ -94,6 +94,32 @@ Hành vi đã chốt trong bản thử:
 - **Thư mục `app/build`** là junction tới `C:\dev\antam-build\app` để tránh OneDrive khóa file.
 - **Bí mật mới** trong `.env`: `JWT_SECRET`, `CODES_SECRET`.
 
+## Giai đoạn 4 (09/11/2026)
+
+- **Sửa thuốc có lịch sử thì tạo phiên bản mới:** nếu thuốc đã có lần uống được ghi và giờ/ngày/liều thay đổi, bản cũ kết thúc hôm qua, bản mới bắt đầu hôm nay cùng `series_id`; ảnh chuyển sang bản mới. Chưa có lịch sử thì sửa tại chỗ.
+- **Xóa thuốc là xóa mềm** (`active = false`): máy người già thôi báo, nhật ký uống và audit vẫn còn.
+- **`schedule_version`** của nhóm tăng sau mọi thay đổi thuốc hoặc ảnh. Máy người già tải lại lịch khi mở app, khi quay lại app, khi kéo để làm mới và sau mỗi lần tắt báo thức. Chưa có FCM nên khi app đóng hẳn, máy người già chỉ nhận thay đổi ở lần mở app tiếp theo.
+- **Ảnh thuốc:** server giải mã rồi mã hóa lại JPEG (bỏ EXIF, cạnh dài tối đa 1600px, tối đa 4 ảnh/thuốc, 5MB). Ảnh không bao giờ sửa (ảnh mới có id mới), nên máy người già tải mỗi ảnh một lần và lưu trong thư mục riêng của app.
+- **Trạng thái liều và triển khai lịch** viết 2 lần (Java ở backend, Dart ở app) và cùng chạy bộ test vector `shared/test-vectors/`. Quá 60 phút chưa xác nhận là "lỡ"; thuốc thêm sau giờ uống trong ngày thì liều đó không tính và không báo.
+- **Lưu offline bằng drift (SQLite)** đúng mục 3 của kế hoạch: bảng thuốc, ảnh, thông tin đồng bộ. App cũng lưu thông tin tài khoản lần cuối để khi mất mạng người già vẫn vào thẳng trang chủ.
+- **Báo thức:** đặt cho 7 ngày tới, mỗi phút có thuốc một báo thức; các thuốc cùng giờ được đọc chung. Id báo thức = 100.000.000 + số phút tính từ 1970, nên màn hình báo biết ngay thuốc nào đến giờ kể cả khi mất mạng hoặc vừa khởi động lại máy. Hàm native `replaceSchedule` hủy những báo thức không còn trong lịch (thuốc đã xóa); báo thức hoãn 10 phút dùng dải id riêng nên không bị hủy nhầm. Mỗi lần tắt báo thức app lại đặt tiếp, nên cửa sổ 7 ngày luôn được kéo dài.
+- **Giới hạn đã biết:** nếu người già không mở app và không có báo thức nào kêu trong 7 ngày, báo thức sẽ hết. Sẽ xử lý bằng FCM hoặc WorkManager ở Giai đoạn 6. Điện thoại được coi là đang ở múi giờ của người già.
+- **Đăng xuất (hoặc server báo phiên đã hết, ví dụ đã ghép máy mới):** máy xóa lịch, ảnh và mọi báo thức, để máy cũ không kêu song song với máy mới.
+- **Build Android (sửa lại ở Giai đoạn 5):** lỗi "Unable to delete directory" có 2 nguyên nhân riêng. (1) Tính năng theo dõi file của Gradle giữ khóa thư mục giữa các lần build trên Windows: đã tắt bằng `org.gradle.vfs.watch=false`. (2) Plugin như `image_picker` sinh đường dẫn dài hơn 260 ký tự trong `.transforms`; Gradle tạo được nhưng không xóa được khi Windows chưa bật Long Paths. Cách sửa gốc là bật `LongPathsEnabled` (người dùng máy tự làm, cần quyền admin; xem SETUP). Trước mắt dùng `app/tool/build_apk.ps1` để xóa các thư mục đó bằng tiền tố `\\?\` trước khi build. Kết luận ở Giai đoạn 4 rằng chỉ cần build vào đường thật là chưa đúng; thay đổi đó đã được bỏ.
+
+## Giai đoạn 5 (09/11/2026)
+
+- **Một báo cáo cho một lần báo:** khi người già bấm ĐÃ UỐNG RỒI / KHÔNG UỐNG ĐƯỢC, máy ghi ngay trên máy (trang chính hiện "Đã uống") và tạo một báo cáo trong hàng đợi. Báo cáo chờ câu trả lời "có vấn đề gì không" (tối đa 2 phút, quá thì là `NO_RESPONSE`) rồi gửi một lần `POST /api/me/dose-reports`, gồm mọi thuốc của lần báo đó. App bị tắt giữa chừng thì lần mở sau tự chốt `NO_RESPONSE`.
+- **Không trùng khi gửi lại:** mỗi báo cáo có `clientEventId`. Id của từng nhật ký uống được suy ra từ id báo cáo và id thuốc (UUID theo tên); cảnh báo dùng chính id báo cáo; database có ràng buộc `UNIQUE`. Hai bản gửi cùng lúc thì bản đến sau nhận lỗi ràng buộc và được trả lời như một lần gửi lại. Một liều đã có câu trả lời thì giữ câu trả lời đầu tiên.
+- **Câu trả lời → cảnh báo:** "Không có gì" và không trả lời thì không tạo cảnh báo; Mất thuốc, Hết thuốc, Thuốc trông khác, Không khỏe, Vấn đề khác tạo đúng loại cảnh báo tương ứng. KHÔNG UỐNG ĐƯỢC ghi `NOT_TAKEN` và hỏi lý do (không có nút "Không có gì"). Người già không thấy lỗi mạng; hàng đợi giữ thứ tự và tự gửi lại khi mở app, khi quay lại app, mỗi phút khi app đang mở và mỗi lần đồng bộ lịch.
+- **Người con:** xem cảnh báo đang mở ở màn hình nhóm; người con nào cũng bấm "Đã xử lý" được và người xử lý đầu tiên được giữ lại. Màn hình thuốc có mục "Hôm nay bố mẹ đã báo". Thông báo đẩy để Giai đoạn 6, tin trong chat để Giai đoạn 9.
+- **Báo thức gộp:** nếu báo thức mới kêu khi báo thức cũ chưa được trả lời, cả hai gộp vào cùng màn hình và cùng giọng đọc; danh sách id đang báo được lưu trên máy. Bấm trả lời thì danh sách được xóa ngay, để app không bị đẩy ngược lại màn hình báo.
+- **Giọng nói: bấm để nói,** khác với kế hoạch (nghe tự động giữa các lượt đọc). Lý do: nghe tự động phải phối hợp micro với vòng đọc của foreground service, và không thử được trên máy ảo vì không có micro thật. Bấm để nói đơn giản hơn, rõ ràng hơn về quyền riêng tư (chỉ nghe khi bấm) mà vẫn giữ quy tắc: câu có "chưa"/"không" không bao giờ tính là đã uống, không chắc thì không ghi. Khi bấm, giọng báo thức tạm dừng 12 giây để micro không nghe chính máy. Có thể nâng lên nghe tự động sau khi thử trên Samsung.
+- **Câu hỏi được đọc thành tiếng** trên luồng báo thức, 3 lần trong 2 phút. Máy không có giọng tiếng Việt thì không đọc bằng giọng tiếng Anh.
+- **Gọi cho con:** danh bạ các con được lưu trên máy mỗi lần đồng bộ, nên vẫn gọi được khi mất mạng. "Tôi thấy không khỏe" hiện nút gọi con và dòng "Nếu nguy cấp, gọi cấp cứu 115"; app không đưa lời khuyên y khoa.
+- **Kiểm tra máy:** thông báo, báo thức đúng giờ, màn hình khóa, pin, giọng tiếng Việt, micro (không bắt buộc). Mỗi mục có nút tới đúng trang cài đặt, kèm hướng dẫn cho Samsung. Trang chính hiện dòng nhắc khi còn thiếu mục bắt buộc.
+- **Đồng bộ bị server từ chối (401/403) không còn bị coi là mất mạng.** Đăng xuất xóa cả hàng đợi, nhật ký trên máy và thông tin đồng bộ.
+
 ## Các quyết định khác
 
 - **Nền tảng:** Android là mục tiêu nghiệm thu. iPhone là phần mở rộng tùy chọn.

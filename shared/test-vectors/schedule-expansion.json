@@ -1,0 +1,47 @@
+{
+  "description": "Expanding a medication into dose times between 'from' and 'to' (inclusive dates, elder's local time). daysOfWeek uses ISO 1=Mon..7=Sun; empty = every day. 2026-11-09 is a Monday.",
+  "cases": [
+    {
+      "name": "every day, two times, three days",
+      "medication": { "times": ["20:00", "07:30"], "daysOfWeek": [], "startDate": "2026-11-01", "endDate": null },
+      "from": "2026-11-09", "to": "2026-11-11",
+      "expected": ["2026-11-09T07:30", "2026-11-09T20:00", "2026-11-10T07:30", "2026-11-10T20:00", "2026-11-11T07:30", "2026-11-11T20:00"]
+    },
+    {
+      "name": "course ending in the middle of the range (5-day prescription)",
+      "medication": { "times": ["08:00"], "daysOfWeek": [], "startDate": "2026-11-06", "endDate": "2026-11-10" },
+      "from": "2026-11-09", "to": "2026-11-12",
+      "expected": ["2026-11-09T08:00", "2026-11-10T08:00"]
+    },
+    {
+      "name": "course starting in the middle of the range",
+      "medication": { "times": ["12:00"], "daysOfWeek": [], "startDate": "2026-11-11", "endDate": null },
+      "from": "2026-11-09", "to": "2026-11-12",
+      "expected": ["2026-11-11T12:00", "2026-11-12T12:00"]
+    },
+    {
+      "name": "Monday, Wednesday, Friday only",
+      "medication": { "times": ["06:00"], "daysOfWeek": [1, 3, 5], "startDate": "2026-11-01", "endDate": null },
+      "from": "2026-11-09", "to": "2026-11-15",
+      "expected": ["2026-11-09T06:00", "2026-11-11T06:00", "2026-11-13T06:00"]
+    },
+    {
+      "name": "weekend only, range without a weekend",
+      "medication": { "times": ["09:00"], "daysOfWeek": [6, 7], "startDate": "2026-11-01", "endDate": null },
+      "from": "2026-11-09", "to": "2026-11-13",
+      "expected": []
+    },
+    {
+      "name": "single-day course",
+      "medication": { "times": ["07:00", "19:00"], "daysOfWeek": [], "startDate": "2026-11-10", "endDate": "2026-11-10" },
+      "from": "2026-11-09", "to": "2026-11-15",
+      "expected": ["2026-11-10T07:00", "2026-11-10T19:00"]
+    },
+    {
+      "name": "already finished before the range",
+      "medication": { "times": ["08:00"], "daysOfWeek": [], "startDate": "2026-10-01", "endDate": "2026-10-07" },
+      "from": "2026-11-09", "to": "2026-11-15",
+      "expected": []
+    }
+  ]
+}

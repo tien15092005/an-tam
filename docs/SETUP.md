@@ -77,6 +77,22 @@ New-Item -ItemType Directory -Force C:\dev\antam-build\app; Remove-Item -Recurse
 
 Cách triệt để hơn là để cả dự án ngoài OneDrive, ví dụ `C:\dev\an-tam`.
 
+## Bật đường dẫn dài trên Windows (nên làm)
+
+Một số plugin (ví dụ `image_picker`) tạo file có đường dẫn dài hơn 260 ký tự trong thư mục build. Khi Windows chưa bật "Long Paths", lần build thứ hai sẽ lỗi "Unable to delete directory ... .transforms". Cách sửa gốc: người dùng máy mở PowerShell **bằng quyền Administrator**, chạy lệnh sau rồi khởi động lại máy:
+
+```bash
+New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name LongPathsEnabled -Value 1 -PropertyType DWORD -Force
+```
+
+Khi chưa bật, build APK bằng script này (tự xóa các thư mục `.transforms` trước khi build):
+
+```bash
+powershell -ExecutionPolicy Bypass -File app\tool\build_apk.ps1
+```
+
+`app/android/gradle.properties` đã tắt tính năng theo dõi file của Gradle (`org.gradle.vfs.watch=false`), vì trên Windows nó giữ khóa thư mục giữa các lần build.
+
 ## Chạy app
 
 ```bash
