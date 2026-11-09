@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/network/api_client.dart';
+import 'elder_schedule.dart';
 import 'schedule_db.dart';
 import 'schedule_sync.dart';
 
@@ -31,6 +32,21 @@ String newEventId() {
   b[8] = (b[8] & 0x3f) | 0x80; // RFC 4122 variant
   final h = b.map((x) => x.toRadixString(16).padLeft(2, '0')).join();
   return '${h.substring(0, 8)}-${h.substring(8, 12)}-${h.substring(12, 16)}-${h.substring(16, 20)}-${h.substring(20)}';
+}
+
+/// Doses the phone answered that the server has not received yet (see `doseKey`).
+Future<Set<String>> pendingDoseKeys(ScheduleDb db) async {
+  final out = <String>{};
+  for (final e in await (db.select(db.pendingEvents)..where((e) => e.path.equals('/api/me/dose-reports'))).get()) {
+    final b = jsonDecode(e.body) as Map<String, dynamic>;
+    final date = DateTime.parse(b['scheduledDate'] as String);
+    final hm = (b['scheduledTime'] as String).split(':');
+    final at = DateTime(date.year, date.month, date.day, int.parse(hm[0]), int.parse(hm[1]));
+    for (final m in (b['medicationIds'] as List).cast<int>()) {
+      out.add(doseKey(m, at));
+    }
+  }
+  return out;
 }
 
 /// Everything the elder presses is written here first and sent when the server can be reached.
@@ -94,6 +110,30 @@ class Outbox {
     await (_db.update(_db.pendingEvents)..where((e) => e.id.equals(row.id))).write(
       PendingEventsCompanion(body: Value(jsonEncode(body)), ready: const Value(true)),
     );
+    flush();
+  }
+
+  /// "TÔI ĐI TẬP ĐÂY": recorded on the phone at once, sent when possible.
+  Future<void> reportExercise({required int exerciseId, required DateTime day, bool byVoice = false}) async {
+    final id = newEventId();
+    final d = DateTime(day.year, day.month, day.day);
+    await _db.transaction(() async {
+      await _db.recordExercise(exerciseId, d);
+      await _db.into(_db.pendingEvents).insert(
+            PendingEventsCompanion.insert(
+              clientEventId: id,
+              path: '/api/me/exercise-reports',
+              body: jsonEncode({
+                'clientEventId': id,
+                'exerciseId': exerciseId,
+                'scheduledDate': '${d.year}-${_two(d.month)}-${_two(d.day)}',
+                'source': byVoice ? 'VOICE' : 'BUTTON',
+              }),
+              createdAt: DateTime.now(),
+              ready: const Value(true),
+            ),
+          );
+    });
     flush();
   }
 

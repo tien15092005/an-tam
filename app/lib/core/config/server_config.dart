@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -24,6 +25,8 @@ class ServerUrlNotifier extends Notifier<String> {
     if (uri == null || !(uri.isScheme('http') || uri.isScheme('https')) || uri.host.isEmpty) {
       return 'Địa chỉ phải bắt đầu bằng http:// hoặc https://';
     }
+    // Release builds talk to the server over HTTPS only (plan §11); Android refuses plain HTTP there anyway.
+    if (kReleaseMode && !uri.isScheme('https')) return 'Bản chính thức chỉ dùng địa chỉ https://';
     await ref.read(sharedPreferencesProvider).setString(_prefsKey, url);
     state = url;
     return null;

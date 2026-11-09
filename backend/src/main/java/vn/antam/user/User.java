@@ -53,6 +53,34 @@ public class User {
         return u;
     }
 
+    /** System admin (plan §10): created from ADMIN_EMAIL / ADMIN_PASSWORD at start-up, never by sign-up. */
+    public static User admin(String email, String passwordHash, Instant now) {
+        User u = new User();
+        u.accountType = AccountType.SYSTEM_ADMIN;
+        u.email = email;
+        u.passwordHash = passwordHash;
+        u.displayName = "Quản trị";
+        u.createdAt = now;
+        return u;
+    }
+
+    /** "Xóa tài khoản": personal data removed, the row kept so history and foreign keys stay valid. */
+    public void anonymize() {
+        this.email = null;
+        this.passwordHash = null;
+        this.phone = null;
+        this.displayName = "Tài khoản đã xóa";
+        this.disabled = true;
+    }
+
+    public void setDisabled(boolean disabled) {
+        this.disabled = disabled;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
     public static User elder(String displayName, String phone, Instant now) {
         User u = new User();
         u.accountType = AccountType.ELDER;

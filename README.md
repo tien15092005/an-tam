@@ -1,129 +1,103 @@
 # An Tâm – Nhắc bố mẹ uống thuốc
 
-Ứng dụng di động giúp người con ở xa theo dõi bố mẹ đã uống thuốc, đi tập thể dục chưa. Phía bố mẹ cực kỳ đơn giản: đến giờ, điện thoại đổ chuông, hiện màn hình lớn và **đọc bằng giọng tiếng Việt**, bố mẹ chỉ cần bấm một nút to để xác nhận.
+Ứng dụng Android giúp người già uống thuốc và tập thể dục đúng giờ, và giúp các con cùng theo dõi trong một nhóm gia đình.
 
-Gồm 3 phần:
+- **Bố mẹ:** đến giờ, điện thoại đổ chuông kể cả khi mất mạng hoặc vừa khởi động lại. Màn hình hiện ảnh viên thuốc và đọc tên, liều, mô tả bằng giọng tiếng Việt cho đến khi được xác nhận. Sau đó máy hỏi "có vấn đề gì không".
+- **Các con:** xem bố mẹ đã uống chưa, nhận cảnh báo, đánh dấu giúp, xem lịch tuần và tháng, chat trong nhóm. Thêm thuốc bằng tay hoặc **Quét OCR** toa thuốc, vỏ hộp, hóa đơn.
 
-| Thư mục     | Là gì                                                                 |
-|-------------|-----------------------------------------------------------------------|
-| `mobile/`   | **App di động** React Native (Expo SDK 58) cho người con và bố mẹ     |
-| `server.py` | Máy chủ API bằng Python (chỉ dùng thư viện chuẩn) + CSDL SQLite       |
-| `public/`   | Trang web: trang **quản trị (admin)** và bản web mẫu ban đầu          |
+> Đồ án môn Mobile App. App là công cụ nhắc lịch, không tư vấn y khoa.
 
-## Chạy thử
+## Thành phần
 
-Cần: **Python 3.10+**, **Node.js 20+**, và app **Expo Go** trên điện thoại (CH Play / App Store).
+| Thư mục | Công nghệ | Vai trò |
+|---|---|---|
+| `app/` | Flutter (Dart), phần báo thức viết bằng Java | App cho người già, người con, admin |
+| `backend/` | Java 25, Spring Boot 4, PostgreSQL, Flyway | API REST + JSON, WebSocket chat, hàng đợi thông báo |
+| `ai-service/` | Python 3.13, FastAPI | Tách thông tin thuốc từ chữ OCR (chỉ backend gọi) |
+| `shared/test-vectors/` | JSON | Bộ dữ liệu kiểm thử dùng chung cho Dart và Java |
+| `scripts/` | Python, PowerShell | Dữ liệu demo giả, sao lưu |
+| `docs/` | Markdown | Kế hoạch, quyết định, cài đặt, báo cáo kiểm thử, báo cáo môn học |
 
-**1. Chạy máy chủ** (cửa sổ terminal thứ nhất, ở thư mục gốc):
+Các thư mục `mobile/`, `public/`, `server.py`, `prescription.py`, `database/` là **bản mẫu cũ** (Expo + Python), giữ lại cho đến khi nhóm đồng ý lưu trữ.
+
+```mermaid
+flowchart LR
+  A[App Flutter] -->|HTTPS REST + JWT| B[Backend Spring Boot]
+  A <-->|WebSocket chat| B
+  B --> C[(PostgreSQL)]
+  B --> M[(Ảnh thuốc)]
+  B -->|service token| D[AI service]
+  B -->|Firebase Admin| E[FCM]
+  A --> F[(SQLite trên máy)] --> G[Báo thức cục bộ]
+```
+
+## Chạy nhanh (Windows)
+
+Cần: Docker Desktop, Flutter SDK, Android Studio với máy ảo hoặc điện thoại Android. Hướng dẫn cài từng thứ ở [docs/SETUP.md](docs/SETUP.md).
+
+**1. Cấu hình bí mật** (một lần):
 
 ```bash
-python server.py
+copy .env.example .env
 ```
 
-Lần đầu Windows có thể hỏi cho phép Python qua tường lửa → chọn **Allow** (Private network) để điện thoại kết nối được.
+Mở `.env`, điền `DB_PASSWORD`, `AI_SERVICE_TOKEN`, `JWT_SECRET`, `CODES_SECRET` (mỗi giá trị là một chuỗi ngẫu nhiên dài, ít nhất 32 ký tự với 2 khóa JWT và mã). File `.env` không lên Git.
 
-**2. Chạy app** (cửa sổ terminal thứ hai):
+**2. Chạy backend, database, AI:**
 
 ```bash
-cd mobile
-npm install
-npx expo start
+docker compose up -d --build
 ```
 
-> Nếu PowerShell báo *"running scripts is disabled"*, dùng `npm.cmd install` và `npx.cmd expo start`.
+Kiểm tra <http://localhost:8080/api/health> phải thấy `"status":"UP","ai":"UP"`.
 
-**3. Mở trên điện thoại:** điện thoại và máy tính dùng **chung Wi-Fi**, mở Expo Go, quét mã QR trong terminal. App tự nhận địa chỉ máy chủ theo IP máy tính; nếu không kết nối được, bấm dòng *“Máy chủ: …”* ở màn hình đăng nhập để nhập tay, ví dụ `http://192.168.1.18:8000`.
-
-Tài khoản mẫu (tạo tự động lần đầu chạy server):
-
-| Vai trò   | Đăng nhập                                  |
-|-----------|--------------------------------------------|
-| Người con | `demo@antam.local` / `demo123`             |
-| Bố mẹ     | chọn “Tôi là bố / mẹ” → mã `123456`        |
-| Admin     | `admin@antam.local` / `admin123` (trên web <http://localhost:8000>) |
-
-Thử trên 2 điện thoại (hoặc đăng xuất rồi đăng nhập vai trò kia) để thấy người con và bố mẹ cùng lúc.
-
-## Tính năng
-
-**Bố mẹ** – chữ rất to, ít nút, tương phản cao
-- Đăng nhập một lần bằng mã 6 số do con tạo, không cần email/mật khẩu.
-- Màn hình chính: giờ hiện tại, việc tiếp theo, danh sách thuốc + giờ tập hôm nay (✓ đã làm, ! bị quên, ⏰ đến giờ).
-- **Đến giờ:** điện thoại tự báo bằng thông báo cục bộ (kể cả khi đã tắt app); khi mở app sẽ hiện màn hình báo toàn trang, rung, **đọc tên thuốc bằng giọng tiếng Việt**, nhắc lại mỗi phút.
-- Nút **ĐÃ UỐNG RỒI** / **TÔI ĐI TẬP ĐÂY**, hoặc **Nhắc lại sau 10 phút**.
-- Nút **Gọi cho con** và **Tôi thấy không khỏe** (gửi cảnh báo cho con).
-
-**Người con**
-- **Hôm nay:** tiến độ uống thuốc, số lần quên, buổi tập, huyết áp gần nhất; đánh dấu giúp khi đã gọi hỏi bố mẹ.
-- **Lịch tuần / tháng:** chấm màu cho từng ngày (đỏ = có lần quên, xanh = đủ, cam = có lịch). Bấm một ngày để xem chi tiết và:
-  - **Quét toa (OCR):** chụp ảnh toa thuốc → app đọc tên thuốc, liều, buổi sáng/trưa/chiều/tối, số ngày dùng → người con xem lại, sửa → tạo lịch nhắc bắt đầu từ ngày đã chọn.
-  - **Thêm thuốc** (nhiều giờ/ngày, dùng lâu dài hoặc N ngày theo toa).
-  - **Lịch tập thể dục** (đi bộ, dưỡng sinh, yoga…, chọn thứ trong tuần, thời lượng).
-- **Sức khỏe:** huyết áp, nhịp tim, đường huyết, SpO₂, nhiệt độ, cân nặng – tô đỏ khi ngoài ngưỡng tham khảo.
-- **Cài đặt:** nhiều hồ sơ bố/mẹ, mã đăng nhập (gửi qua Zalo/SMS), mời anh chị em cùng theo dõi.
-
-**Admin** (web) – thống kê, tìm kiếm, khóa/mở khóa, xóa tài khoản.
-
-Quá **60 phút** sau giờ hẹn mà chưa xác nhận thì tính là “bị quên” (`GRACE_MIN` trong `server.py`).
-
-## Quét toa thuốc (OCR) & giọng đọc Google
-
-Hai tính năng này dùng chung **một key Google Cloud** (tùy chọn):
-
-| Dịch vụ Google          | Dùng cho                         | Không có key thì                         |
-|-------------------------|----------------------------------|------------------------------------------|
-| Cloud Vision            | Đọc chữ trên ảnh toa thuốc       | Vẫn dán/gõ chữ toa thuốc để tách được    |
-| Cloud Text-to-Speech    | Giọng đọc chuẩn trên bản web     | Dùng giọng tiếng Việt có sẵn của máy     |
-
-1. Vào <https://console.cloud.google.com>, tạo project, bật **Cloud Vision API** (và **Cloud Text-to-Speech API** nếu cần). Google yêu cầu gắn thẻ thanh toán, có hạn mức miễn phí hằng tháng.
-2. **APIs & Services → Credentials → Create credentials → API key**, giới hạn key chỉ cho 2 API trên.
-3. Sao chép `.env.example` thành `.env`, dán key vào `GOOGLE_API_KEY=`, chạy lại `python server.py`.
-
-File `.env` không được đưa lên GitHub. Phần tách toa thuốc nằm ở [`prescription.py`](prescription.py) (tự viết, không cần AI): kết quả luôn để người con duyệt lại trước khi tạo lịch.
-
-**Giọng đọc trong app di động** dùng giọng tiếng Việt của điện thoại (Android: Google Text-to-Speech, iPhone: Linh). Nếu nghe như đánh vần: *Cài đặt → Ngôn ngữ → Chuyển văn bản thành giọng nói*, tải giọng **Tiếng Việt**.
-
-## Cơ sở dữ liệu
-
-**SQLite**, lưu trong `careapp.db`; cấu trúc ở [`database/schema.sql`](database/schema.sql). CSDL cũ được tự nâng cấp khi chạy bản mới.
+**3. Dữ liệu demo giả** (tùy chọn):
 
 ```bash
-python server.py --init-db    # chỉ tạo CSDL (+ dữ liệu mẫu nếu trống), không chạy server
-python server.py --reset-db   # xóa CSDL cũ, tạo lại từ đầu
+python scripts/seed_demo.py
 ```
 
-Các bảng: `users` (3 vai trò), `sessions`, `family_links` (con ↔ bố mẹ), `medications` (có ngày bắt đầu/kết thúc theo toa), `dose_logs`, `exercises`, `exercise_logs`, `health_records`, `alerts`. Xem dữ liệu bằng [DB Browser for SQLite](https://sqlitebrowser.org/).
-
-## Cấu trúc
-
-```
-server.py            API + CSDL
-prescription.py      tách danh sách thuốc từ chữ trên toa
-database/schema.sql  cấu trúc CSDL
-mobile/              app Expo (React Native)
-  src/app/           các màn hình (Expo Router)
-    login.tsx          đăng nhập, chọn vai trò
-    elder.tsx          giao diện bố mẹ + báo thức + giọng nói
-    (child)/           các tab người con: Hôm nay, Lịch, Sức khỏe, Cài đặt
-    ocr.tsx            quét toa thuốc
-    med-form.tsx, exercise-form.tsx, health-form.tsx, elder-form.tsx
-  src/components/    nút, thẻ, lịch tuần/tháng, chọn giờ…
-  src/lib/           gọi API, thông báo, giọng nói, theme
-public/              trang admin + bản web mẫu
-```
-
-## Kiểm tra code
+**4. Chạy app** trên máy ảo (máy ảo gọi laptop qua `http://10.0.2.2:8080`, đã là mặc định):
 
 ```bash
-cd mobile
-npx tsc --noEmit     # kiểm tra kiểu
-npx expo lint        # lint
+cd app && flutter run
 ```
 
-## Hạn chế & hướng tiếp theo
+Trên điện thoại thật: mở đường hầm HTTPS (`cloudflared tunnel --url http://localhost:8080`), rồi trong app bấm **Cài đặt máy chủ** và dán địa chỉ `https://...trycloudflare.com`.
 
-- Expo Go chỉ để phát triển. Muốn cài như app thật (file APK), build bằng EAS: `npx eas-cli@latest build -p android --profile preview`.
-- Màn hình báo toàn trang chỉ hiện khi app đang mở; khi app tắt, điện thoại hiện thông báo kèm âm thanh, bấm vào sẽ mở màn hình báo.
-- Chưa có xác nhận bằng giọng nói (“đã uống”) trên app di động: cần thư viện nhận diện giọng nói native, phải dùng development build thay cho Expo Go.
-- Người con chưa nhận push notification khi app tắt (cần Expo Push / FCM + development build).
-- Giờ được tính theo múi giờ của máy chủ. Trước khi chạy thật: đổi mật khẩu admin, dùng HTTPS, thêm hết hạn phiên đăng nhập, sao lưu CSDL.
+Nếu build Android báo "Unable to delete directory", dùng `powershell -ExecutionPolicy Bypass -File app\tool\build_apk.ps1` (xem SETUP).
+
+## Dùng thử
+
+1. Máy người con: **Tôi là người con → Đăng ký**, tạo nhóm, **Cài đặt → Thêm bố / mẹ → Mã ghép máy**.
+2. Máy người già: **Tôi là bố / mẹ**, nhập mã 6 số. Mở **Kiểm tra máy** để bật đủ quyền báo thức.
+3. Người con: tab **Lịch → Thêm thuốc** (nhập tay hoặc **Quét OCR**), chụp ảnh viên thuốc, đặt giờ.
+4. Đến giờ, máy người già báo; xác nhận và trả lời câu hỏi. Người con thấy kết quả ở tab **Hôm nay** và tin trong tab **Nhóm**.
+
+## Kiểm thử
+
+```bash
+cd backend && mvnw test
+```
+
+```bash
+cd app && flutter analyze && flutter test
+```
+
+```bash
+cd ai-service && .venv\Scripts\python -m pytest -q
+```
+
+Backend dùng Testcontainers (cần Docker đang chạy). Kết quả từng giai đoạn: [docs/TEST_REPORT.md](docs/TEST_REPORT.md). Đánh giá OCR: [ai-service/evaluation/REPORT.md](ai-service/evaluation/REPORT.md).
+
+## Tài liệu
+
+- [docs/SKILL_AN_TAM.md](docs/SKILL_AN_TAM.md): kế hoạch và tiêu chí nghiệm thu từng giai đoạn.
+- [docs/DECISIONS.md](docs/DECISIONS.md): các quyết định kỹ thuật và lý do.
+- [docs/SETUP.md](docs/SETUP.md): cài đặt, đường hầm, Firebase, admin, sao lưu, APK phát hành.
+- [docs/demo-script.md](docs/demo-script.md): kịch bản demo nghiệm thu.
+- [docs/report/BAO_CAO.md](docs/report/BAO_CAO.md): bản nháp báo cáo môn học.
+
+## Bảo mật
+
+Không đưa lên Git: `.env`, `secrets/`, `google-services.json`, keystore, `key.properties`, `backups/`, ảnh và dữ liệu thật. Chỉ dùng dữ liệu giả trong demo và ảnh chụp màn hình.

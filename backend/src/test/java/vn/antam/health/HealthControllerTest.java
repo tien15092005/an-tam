@@ -27,6 +27,10 @@ class HealthControllerTest {
     @MockitoBean
     AiServiceClient aiServiceClient;
 
+    /** SecurityConfig's locked-account check reads users; not used by these anonymous calls. */
+    @MockitoBean
+    org.springframework.jdbc.core.JdbcTemplate jdbc;
+
     @Test
     void isPublicAndReportsAiUpWhenReachable() throws Exception {
         when(aiServiceClient.isReachable()).thenReturn(true);

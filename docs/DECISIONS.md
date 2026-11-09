@@ -120,6 +120,56 @@ Hành vi đã chốt trong bản thử:
 - **Kiểm tra máy:** thông báo, báo thức đúng giờ, màn hình khóa, pin, giọng tiếng Việt, micro (không bắt buộc). Mỗi mục có nút tới đúng trang cài đặt, kèm hướng dẫn cho Samsung. Trang chính hiện dòng nhắc khi còn thiếu mục bắt buộc.
 - **Đồng bộ bị server từ chối (401/403) không còn bị coi là mất mạng.** Đăng xuất xóa cả hàng đợi, nhật ký trên máy và thông tin đồng bộ.
 
+## Giai đoạn 6 (09/11/2026)
+
+- **Hàng đợi thông báo (`notification_outbox`):** mọi thông báo được ghi trong cùng giao dịch với sự kiện, một dòng cho mỗi người nhận, khóa `dedupe_key` (ví dụ `alert:42:7`) nên gửi lại báo cáo hay quét lại không tạo thông báo thứ hai. Một tác vụ nền gửi mỗi 3 giây và chạy ngay khi backend khởi động, nên thông báo tồn lúc laptop tắt sẽ đi ngay khi bật lại. Độ trễ (tạo → giao cho FCM) đo bằng Micrometer `antam.notifications.latency` ở `/actuator/metrics`.
+- **FCM:** backend dùng Firebase Admin SDK 9.9.0, chỉ bật khi có biến `FIREBASE_CREDENTIALS` trỏ tới file service account (để ngoài Git, thư mục `secrets/`). App nhận cấu hình Firebase qua `--dart-define` (không cần `google-services.json` trong repo). Thiếu cấu hình thì thông báo được đóng là `DISABLED` và app tự làm mới: tab Hôm nay mỗi 30 giây và khi quay lại app. Chưa thử được với Firebase thật vì nhóm chưa tạo project.
+- **firebase_messaging 17** khuyên dùng FID thay cho registration token. Backend gửi bằng `Message.setToken`, nên app vẫn dùng `getToken()` (đánh dấu `ignore: deprecated_member_use` kèm lý do). Đổi sang FID khi Admin SDK hỗ trợ gửi theo FID.
+- **`NOT_CONFIRMED`:** quét mỗi phút, xét 24 giờ gần nhất, một cảnh báo cho mỗi giờ uống (chỉ mục duy nhất một phần trong PostgreSQL nên chạy hai lần vẫn chỉ có một). Nội dung ghi "chưa xác nhận", "máy có thể đang tắt hoặc mất mạng", không khẳng định đã quên. Máy người già vẫn tiếp tục báo. Cảnh báo tự đóng khi mọi thuốc của giờ đó có câu trả lời (từ người già hoặc người con đánh dấu giúp), ghi người đóng.
+- **Đánh dấu giúp:** chỉ `TAKEN`, trong 7 ngày gần đây, không sớm hơn giờ uống quá 2 giờ, chỉ cho thuốc có lịch đúng giờ đó; câu trả lời đầu tiên được giữ. Hoàn tác chỉ áp dụng cho lần đánh dấu giúp, không xóa được câu trả lời của người già. Có ghi `audit_logs`.
+- **Dừng báo trên máy người già:** FCM data message `DOSE_MARKED` khi có Firebase; ngoài ra màn hình báo hỏi server mỗi 20 giây khi có mạng, thấy mọi thuốc của lần báo đã có câu trả lời thì dừng và đọc "Con đã ghi nhận ... uống thuốc rồi ạ". Mất mạng thì vẫn báo đến khi người già trả lời (đúng mục 9).
+- **Giao diện người con 4 tab** (Hôm nay, Lịch, Nhóm, Cài đặt) với bộ chuyển nhóm ở tiêu đề; app mở lại nhóm dùng gần nhất.
+- **Lỗi bố cục tìm được khi thử:** theme đặt kích thước nút tối thiểu là `Size.fromHeight` (rộng vô hạn). Nút như vậy đặt trong `Row` làm tab Hôm nay đơ hẳn. Các nút trong hàng nay đặt `minimumSize: Size(0, 48)`; có test widget chống lặp lại.
+
+## Giai đoạn 7 (09/11/2026)
+
+- **Lịch tập** có bảng riêng (`exercises`, `exercise_logs`), cùng cách đánh phiên bản như thuốc (đổi giờ hoặc ngày sau khi đã có lịch sử thì đóng bản cũ, tạo bản mới cùng `series_id`).
+- **Một báo thức mỗi phút cho cả thuốc và bài tập:** không phải sửa phần Java; id báo thức vẫn là phút. Chỉ có bài tập thì màn hình báo hiện "Đến giờ tập thể dục" và nút **TÔI ĐI TẬP ĐÂY**, không hỏi vấn đề. Trùng giờ với thuốc thì đọc thuốc trước, bài tập sau; thẻ bài tập có nút riêng.
+- **Lịch tuần, tháng:** API `GET /calendar?from&to` (tối đa 62 ngày) trả số đếm theo ngày, tính bằng cùng hàm trạng thái với tab Hôm nay. Chấm màu theo việc tệ nhất trong ngày (đỏ chưa xác nhận, cam không uống được, xanh lá uống đủ, xanh đậm còn lần sắp tới); mỗi ô có nhãn TalkBack bằng chữ. Bấm ngày mở bottom sheet chi tiết; trưởng nhóm thêm thuốc hoặc lịch tập bắt đầu từ ngày đó.
+- Không thêm thư viện lịch; lưới lịch tự vẽ để kiểm soát nhãn trợ năng.
+
+## Giai đoạn 8 (09/11/2026)
+
+- **Đọc chữ trên máy** bằng `google_mlkit_text_recognition` 0.17.1 (bản 1.0.x ra chưa đủ 2 tuần nên chưa dùng), cắt ảnh bằng `image_cropper` 13. Ảnh giấy tờ không rời máy; chỉ văn bản đã lọc dòng cá nhân (họ tên, địa chỉ, điện thoại, số thẻ, chẩn đoán, mã số dài) được gửi. AI service lọc lại lần nữa.
+- **Bản nền** viết lại từ `prescription.py`: tách toa thuốc, bao bì, hóa đơn. Khác bản mẫu ở một điểm an toàn: **không tự gán giờ uống** khi giấy không ghi (bản mẫu mặc định 07:30); trường không chắc để trống, nằm trong `uncertain` và được tô vàng ở màn hình duyệt. Lưu thuốc mà chưa có giờ thì app yêu cầu chọn giờ.
+- **Bộ đánh giá** 32 mẫu tự soạn, chia dev/test; kết quả trong `ai-service/evaluation/REPORT.md`. Chưa thử LLM hay mô hình ngoài vì cần nhóm đồng ý (dữ liệu rời máy chủ, có chi phí).
+- **Lỗi thật khi thử trên máy ảo:** ML Kit đọc "500mg" thành "50Omg". AI service nay sửa chữ O hoặc l kẹp giữa các chữ số hoặc giữa số và đơn vị (không đụng chữ trong tên thuốc).
+- **Lỗi kết nối backend → AI:** HttpClient của Java xin nâng cấp HTTP/2 (h2c), uvicorn từ chối và làm rơi thân request (lỗi 422). Backend nay ép HTTP/1.1; test kiểm tra không còn header `Upgrade`.
+- AI lỗi hoặc quá 5 giây: backend trả 503 `ai_unavailable`, app đề nghị "Nhập tay".
+
+## Giai đoạn 9 (09/11/2026)
+
+- **WebSocket thuần của Spring** tại `/ws/chat` (không dùng STOMP cho gọn). Bắt tay đi qua bộ lọc bảo mật thường, nên cần đúng header `Authorization: Bearer` như REST. Đăng ký theo nhóm; server kiểm tra quyền khi đăng ký và **mỗi lần gửi**, nên người bị xóa khỏi nhóm không nhận thêm tin dù socket còn mở.
+- Tin được đẩy **sau khi giao dịch commit**. Mất kết nối thì app thử lại với thời gian chờ tăng dần (1 → 30 giây) và tải lại trang mới nhất qua REST, nên không sót tin.
+- Gửi lại không trùng nhờ `UNIQUE(sender_id, client_message_id)`. Chưa đọc tính theo `last_read_message_id`, không bao giờ lùi. Chỉ người gửi xóa được tin (nội dung bị ẩn với mọi người).
+- **Tin hệ thống:** báo cáo uống thuốc, mọi cảnh báo (kèm `alert_id`, bấm mở tab Hôm nay), đánh dấu giúp, thêm, sửa, xóa thuốc và lịch tập.
+- Tab Nhóm là chat; danh sách thành viên mở từ đầu trang chat và có trong tab Cài đặt. Chat chỉ dựng khi tab đang mở, để tin chỉ được đánh dấu đã đọc khi có người xem.
+
+## Giai đoạn 10 (09/11/2026)
+
+- **Admin** (`SYSTEM_ADMIN`) chỉ được tạo từ `ADMIN_EMAIL`, `ADMIN_PASSWORD` khi backend khởi động; không có đăng ký admin. Admin không là thành viên nhóm nào, nên mọi API của nhóm (thuốc, ảnh, chat, liều, cảnh báo) trả 404 cho admin; có test cho từng loại.
+- **Khóa tài khoản có hiệu lực ngay:** thu hồi mọi refresh token, và một bộ lọc sau bước xác thực JWT từ chối mọi request của tài khoản bị khóa (401 `account_disabled`), không phải chờ access token hết hạn.
+- Admin xem tổng số người dùng theo loại, nhóm, cảnh báo đang mở, cảnh báo 7 ngày, tài khoản bị khóa; tìm tài khoản theo tên hoặc email. Không có số liệu sức khỏe.
+
+## Giai đoạn 11 (09/11/2026)
+
+- **Màn hình đồng ý** hiện một lần trước mọi màn hình khác (trừ báo thức đang kêu): dữ liệu thu thập, ai xem được, OCR, micro, xóa dữ liệu, và dòng "không tư vấn y khoa, nguy cấp gọi 115".
+- **Xóa tài khoản:** `DELETE /api/me?confirm=true`. Trưởng nhóm còn anh chị em phải chuyển quyền trước. Rời mọi nhóm; tin nhắn của người đó bị ẩn; thiết bị và phiên bị xóa; dòng `users` được giữ ở dạng ẩn danh (không email, mật khẩu, số điện thoại) để lịch sử và khóa ngoại vẫn đúng (migration V7 cho phép trạng thái này). Nếu là người con cuối cùng, nhóm bị xóa cùng tên, số điện thoại, ghi chú sức khỏe của bố mẹ, ảnh thuốc và tin nhắn.
+- **Ảnh đã xóa quá 30 ngày** được xóa khỏi ổ đĩa bằng tác vụ nền (lịch sử chỉ dùng `name_snapshot`).
+- **Sao lưu:** `scripts/backup.ps1` (pg_dump và thư mục ảnh, giữ 14 bản, thư mục `backups/` không lên Git). **Dữ liệu demo giả:** `scripts/seed_demo.py`.
+- **Bản phát hành:** ký bằng keystore của nhóm trưởng qua `android/key.properties` (không lên Git); thiếu thì ký bằng khóa debug và không được phát tán. Bản phát hành chỉ chấp nhận địa chỉ `https://` (Android cũng chặn HTTP ở bản này).
+- **CI:** thêm `flutter test --coverage` và lưu `lcov.info`. Chưa đo độ phủ backend vì JaCoCo bản đang có chưa xác nhận hỗ trợ Java 25.
+
 ## Các quyết định khác
 
 - **Nền tảng:** Android là mục tiêu nghiệm thu. iPhone là phần mở rộng tùy chọn.

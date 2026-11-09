@@ -34,6 +34,7 @@ import vn.antam.medication.DoseLog;
 import vn.antam.medication.DoseLogRepository;
 import vn.antam.medication.Medication;
 import vn.antam.medication.MedicationRepository;
+import vn.antam.notification.Notifier;
 import vn.antam.user.User;
 import vn.antam.user.UserRepository;
 
@@ -52,11 +53,15 @@ public class CareService {
     private final GroupMemberRepository members;
     private final GroupAccess access;
     private final UserRepository users;
+    private final Notifier notifier;
+    private final vn.antam.chat.ChatService chat;
+    private final TodayService today;
     private final Clock clock;
 
     public CareService(DoseLogRepository doseLogs, AlertRepository alerts, MedicationRepository medications,
                        ElderProfileRepository elders, GroupMemberRepository members, GroupAccess access,
-                       UserRepository users, Clock clock) {
+                       UserRepository users, Notifier notifier, TodayService today, vn.antam.chat.ChatService chat,
+                       Clock clock) {
         this.doseLogs = doseLogs;
         this.alerts = alerts;
         this.medications = medications;
@@ -64,6 +69,9 @@ public class CareService {
         this.members = members;
         this.access = access;
         this.users = users;
+        this.notifier = notifier;
+        this.chat = chat;
+        this.today = today;
         this.clock = clock;
     }
 
@@ -95,6 +103,7 @@ public class CareService {
 
         List<DoseLog> logs = new ArrayList<>();
         List<String> names = new ArrayList<>();
+        boolean[] createdAny = {false};
         for (Long medId : r.medicationIds().stream().distinct().toList()) {
             Medication m = medications.findById(medId)
                     .filter(x -> x.getElderUserId().equals(elderUserId) && x.getGroupId().equals(elder.getGroupId()))
@@ -106,6 +115,7 @@ public class CareService {
                         DoseLog d = new DoseLog(m, r.scheduledDate(), time, r.status(), r.source(),
                                 doseEventId(r.clientEventId(), medId), elderUserId, at);
                         d.setCheckResult(r.checkResult().name());
+                        createdAny[0] = true;
                         return doseLogs.save(d);
                     });
             logs.add(log);
@@ -117,7 +127,16 @@ public class CareService {
             a.aboutDose(logs.getFirst().getId(), logs.size() == 1 ? logs.getFirst().getMedicationId() : null,
                     String.join(", ", names), r.scheduledDate(), time);
             alertId = alerts.save(a).getId();
+            notifyAlert(a, elder);
+        } else if (createdAny[0]) {
+            // One notification per report and person: an alert replaces the plain report.
+            notifier.toCaregivers(elder.getGroupId(), Notifier.Kind.DOSE_REPORT, logs.getFirst().getId(),
+                    "report:" + r.clientEventId(), CareTexts.reportTitle(elder.getCallName(), r.status()),
+                    r.scheduledTime() + " · " + String.join(", ", names), r.status() != DoseLog.Status.TAKEN, null);
+            chat.system(elder.getGroupId(), CareTexts.reportTitle(elder.getCallName(), r.status()) + " · " + r.scheduledTime()
+                    + " · " + String.join(", ", names), null);
         }
+        today.resolveNotConfirmedIfAnswered(elderUserId, r.scheduledDate(), time, elderUserId, now);
         return new DoseReportResult(logs.stream().map(DoseLog::getId).toList(), alertId, false);
     }
 
@@ -127,8 +146,10 @@ public class CareService {
         if (r.kind() == Alert.Kind.NOT_CONFIRMED) {
             throw ApiException.badRequest("validation", "Loại cảnh báo này do hệ thống tạo.");
         }
-        Alert a = alerts.findByClientEventId(r.clientEventId())
-                .orElseGet(() -> alerts.save(new Alert(elder.getGroupId(), elderUserId, r.kind(), r.clientEventId(), clock.instant())));
+        Optional<Alert> existing = alerts.findByClientEventId(r.clientEventId());
+        if (existing.isPresent()) return toResponses(List.of(existing.get())).getFirst();
+        Alert a = alerts.save(new Alert(elder.getGroupId(), elderUserId, r.kind(), r.clientEventId(), clock.instant()));
+        notifyAlert(a, elder);
         return toResponses(List.of(a)).getFirst();
     }
 
@@ -174,6 +195,14 @@ public class CareService {
     }
 
     // ---- helpers
+
+    private void notifyAlert(Alert a, ElderProfile elder) {
+        notifier.toCaregivers(a.getGroupId(), Notifier.Kind.ALERT, a.getId(), "alert:" + a.getId(),
+                CareTexts.alertTitle(elder.getCallName(), a.getKind()), CareTexts.alertBody(a), true, null);
+        chat.system(a.getGroupId(), CareTexts.alertTitle(elder.getCallName(), a.getKind())
+                + (a.getMedicationNames() == null ? "" : " " + a.getMedicationNames())
+                + (a.getScheduledTime() == null ? "" : " (liều " + CareTexts.hhmm(a.getScheduledTime()) + ")"), a.getId());
+    }
 
     private static Alert.Kind issueOf(CheckResult result, Alert.Kind issue) {
         if (result == CheckResult.ISSUE) {

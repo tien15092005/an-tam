@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:app/core/network/api_client.dart';
+import 'package:app/reminder/elder_schedule.dart';
 import 'package:app/reminder/outbox.dart';
 import 'package:app/reminder/schedule_db.dart';
 import 'package:app/reminder/schedule_sync.dart';
@@ -130,5 +131,15 @@ void main() {
     await outbox.startDoseReport(minute: DateTime(2026, 11, 9, 8), medicationIds: [1], taken: true);
     await outbox.startDoseReport(minute: DateTime(2026, 11, 9, 8), medicationIds: [1], taken: false);
     expect((await db.select(db.localDoseLogs).getSingle()).status, 'TAKEN');
+  });
+
+  test('answers still waiting to be sent are known, so a sync never drops them', () async {
+    final at = DateTime(2026, 11, 9, 8);
+    await outbox.startDoseReport(minute: at, medicationIds: [1, 2], taken: true);
+    expect(await pendingDoseKeys(db), {doseKey(1, at), doseKey(2, at)});
+    server.online = true;
+    await outbox.finishDoseReport((await db.select(db.pendingEvents).getSingle()).clientEventId);
+    await outbox.flush();
+    expect(await pendingDoseKeys(db), isEmpty);
   });
 }

@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
-import 'package:drift/drift.dart' show ComparableExpr, Value;
+import 'package:drift/drift.dart' show BooleanExpressionOperators, ComparableExpr, Value;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show MissingPluginException;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -70,6 +70,7 @@ class ElderScheduleNotifier extends AsyncNotifier<ElderSchedule> {
   Future<void> clear() async {
     await _db.replaceAll(const [], const []);
     await _db.delete(_db.localDoseLogs).go();
+    await _db.delete(_db.localExerciseLogs).go();
     await _db.delete(_db.pendingEvents).go();
     await _db.delete(_db.syncMeta).go(); // version, name, last sync time, saved contacts
     final dir = await _imagesDir();
@@ -133,15 +134,47 @@ class ElderScheduleNotifier extends AsyncNotifier<ElderSchedule> {
           createdAt: m.createdAt,
         ),
     ];
-    await _db.replaceAll(medRows, imageRows);
-    // The server's answers (e.g. from before a reinstall) join the phone's own; the server wins.
+    final exerciseRows = [
+      for (final e in (json['exercises'] as List? ?? const []).cast<Map<String, dynamic>>())
+        CachedExercisesCompanion.insert(
+          id: Value(e['id'] as int),
+          title: e['title'] as String,
+          time: e['time'] as String,
+          daysMask: weekdayMask(((e['daysOfWeek'] as List?) ?? const []).cast<int>()),
+          durationMin: Value(e['durationMin'] as int?),
+          note: Value(e['note'] as String?),
+          startDate: DateTime.parse(e['startDate'] as String),
+          endDate: Value(e['endDate'] == null ? null : DateTime.parse(e['endDate'] as String)),
+          createdAt: DateTime.parse(e['createdAt'] as String).toLocal(),
+        ),
+    ];
+    await _db.replaceAll(medRows, imageRows, exerciseRows);
+    for (final x in (json['recentExercises'] as List? ?? const []).cast<Map<String, dynamic>>()) {
+      final d = DateTime.parse(x['scheduledDate'] as String);
+      await _db.recordExercise(x['exerciseId'] as int, DateTime(d.year, d.month, d.day));
+    }
+    // The server's answers (e.g. from before a reinstall, or a caregiver's mark) join the phone's own;
+    // the server wins.
+    final serverKeys = <String>{};
     for (final d in (json['recentDoses'] as List? ?? const []).cast<Map<String, dynamic>>()) {
       final date = DateTime.parse(d['scheduledDate'] as String);
       final t = TimeOfDose.parse(d['scheduledTime'] as String);
-      await _db.into(_db.localDoseLogs).insertOnConflictUpdate(LocalDoseLogsCompanion.insert(
-          medicationId: d['medicationId'] as int,
-          scheduledAt: DateTime(date.year, date.month, date.day, t.hour, t.minute),
-          status: d['status'] as String));
+      final at = DateTime(date.year, date.month, date.day, t.hour, t.minute);
+      serverKeys.add(doseKey(d['medicationId'] as int, at));
+      await _db.into(_db.localDoseLogs).insertOnConflictUpdate(
+          LocalDoseLogsCompanion.insert(medicationId: d['medicationId'] as int, scheduledAt: at, status: d['status'] as String));
+    }
+    // A caregiver undid a mark: the server no longer has it. Answers still waiting in the outbox stay.
+    final pending = await pendingDoseKeys(_db);
+    final now = DateTime.now();
+    final since = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 1));
+    for (final l in await (_db.select(_db.localDoseLogs)..where((l) => l.scheduledAt.isBiggerOrEqualValue(since))).get()) {
+      final k = doseKey(l.medicationId, l.scheduledAt);
+      if (!serverKeys.contains(k) && !pending.contains(k)) {
+        await (_db.delete(_db.localDoseLogs)
+              ..where((x) => x.medicationId.equals(l.medicationId) & x.scheduledAt.equals(l.scheduledAt)))
+            .go();
+      }
     }
     await (_db.delete(_db.localDoseLogs)
           ..where((l) => l.scheduledAt.isSmallerThanValue(DateTime.now().subtract(const Duration(days: 8)))))
@@ -169,12 +202,29 @@ class ElderScheduleNotifier extends AsyncNotifier<ElderSchedule> {
     final logs = await _loadLogs();
     final meds = await _db.select(_db.cachedMedications).get();
     final images = await _db.select(_db.cachedImages).get();
+    final exercises = await _db.select(_db.cachedExercises).get();
+    final done = await _db.select(_db.localExerciseLogs).get();
     final last = await _db.meta('lastSynced');
     return ElderSchedule(
       callName: await _db.meta('callName') ?? '',
       version: int.tryParse(await _db.meta('version') ?? '') ?? -1,
       lastSynced: last == null ? null : DateTime.parse(last),
       logs: logs,
+      exercisesDone: {for (final d in done) exerciseKey(d.exerciseId, d.day)},
+      exercises: [
+        for (final e in exercises)
+          ElderExercise(
+            id: e.id,
+            title: e.title,
+            time: TimeOfDose.parse(e.time),
+            daysMask: e.daysMask,
+            durationMin: e.durationMin,
+            note: e.note,
+            startDate: e.startDate,
+            endDate: e.endDate,
+            createdAt: e.createdAt,
+          ),
+      ],
       meds: [
         for (final m in meds)
           ElderMed(

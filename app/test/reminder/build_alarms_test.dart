@@ -66,4 +66,43 @@ void main() {
     final s = ElderSchedule(callName: '', version: 1, meds: [med(1, 'A', ['20:00']), med(2, 'B', ['08:00'])]);
     expect(s.medsAt(doseMinuteOf(id)!).map((m) => m.name), ['A']);
   });
+
+  ElderExercise walk({int mask = 127, String time = '06:30', int? minutes = 20}) => ElderExercise(
+        id: 9,
+        title: 'Đi bộ',
+        time: TimeOfDose.parse(time),
+        daysMask: mask,
+        durationMin: minutes,
+        startDate: DateTime(2026, 11, 1),
+        createdAt: DateTime(2026, 11, 1, 9),
+      );
+
+  test('a Monday-Wednesday-Friday exercise rings on exactly those days, with its own words', () {
+    final s = ElderSchedule(callName: 'Bà Lan', version: 1, meds: const [], exercises: [walk(mask: weekdayMask([1, 3, 5]))]);
+    final alarms = buildAlarms(s, DateTime(2026, 11, 9, 5), days: 7); // Monday 05:00
+    expect(alarms.map((a) => a.at.weekday), [1, 3, 5]);
+    expect(alarms.first.speech, contains('đến giờ tập thể dục'));
+    expect(alarms.first.speech, contains('Đi bộ, 20 phút'));
+    expect(alarms.first.speech, isNot(contains('uống thuốc')));
+    expect(alarms.first.title, 'Tập thể dục: Đi bộ');
+  });
+
+  test('a medicine and an exercise at the same minute share one alarm, medicine first', () {
+    final s = ElderSchedule(
+        callName: 'Bà Lan', version: 1, meds: [med(1, 'Amlodipin', ['06:30'])], exercises: [walk()]);
+    final alarms = buildAlarms(s, DateTime(2026, 11, 9, 5), days: 1);
+    expect(alarms, hasLength(1));
+    expect(alarms.single.speech.indexOf('Amlodipin'), lessThan(alarms.single.speech.indexOf('Đi bộ')));
+    expect(s.medsAt(alarms.single.at).map((m) => m.name), ['Amlodipin']);
+    expect(s.exercisesAt(alarms.single.at).map((e) => e.title), ['Đi bộ']);
+  });
+
+  test('an exercise already done today does not ring again', () {
+    final day = DateTime(2026, 11, 9);
+    final s = ElderSchedule(
+        callName: '', version: 1, meds: const [], exercises: [walk(time: '17:00')], exercisesDone: {exerciseKey(9, day)});
+    final alarms = buildAlarms(s, DateTime(2026, 11, 9, 8), days: 2);
+    expect(alarms.map((a) => a.at), [DateTime(2026, 11, 10, 17)]);
+    expect(s.exercisesOn(day).single.done, isTrue);
+  });
 }

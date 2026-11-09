@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import '../../core/push/push.dart';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -46,11 +48,15 @@ class SessionStore {
 final sessionStoreProvider = Provider<SessionStore>((ref) => SessionStore());
 
 /// Dio without the auth interceptor, used for sign-in and token refresh themselves.
-final authDioProvider = Provider<Dio>((ref) => Dio(BaseOptions(
+final authDioProvider = Provider<Dio>(
+  (ref) => Dio(
+    BaseOptions(
       baseUrl: ref.watch(serverUrlProvider),
       connectTimeout: const Duration(seconds: 8),
       receiveTimeout: const Duration(seconds: 15),
-    )));
+    ),
+  ),
+);
 
 /// Null when signed out. Screens and the router watch this.
 class SessionNotifier extends AsyncNotifier<Session?> {
@@ -63,26 +69,41 @@ class SessionNotifier extends AsyncNotifier<Session?> {
     state = AsyncData(s);
   }
 
-  Future<void> register({required String email, required String password, required String displayName, String? phone}) async {
-    final r = await ref.read(authDioProvider).post<Map<String, dynamic>>('/api/auth/register', data: {
-      'email': email,
-      'password': password,
-      'displayName': displayName,
-      'phone': phone,
-      'deviceName': 'Android',
-    });
+  Future<void> register({
+    required String email,
+    required String password,
+    required String displayName,
+    String? phone,
+  }) async {
+    final r = await ref
+        .read(authDioProvider)
+        .post<Map<String, dynamic>>(
+          '/api/auth/register',
+          data: {
+            'email': email,
+            'password': password,
+            'displayName': displayName,
+            'phone': phone,
+            'deviceName': 'Android',
+          },
+        );
     await _save(r.data!);
   }
 
   Future<void> login(String email, String password) async {
-    final r = await ref.read(authDioProvider).post<Map<String, dynamic>>('/api/auth/login',
-        data: {'email': email, 'password': password, 'deviceName': 'Android'});
+    final r = await ref
+        .read(authDioProvider)
+        .post<Map<String, dynamic>>(
+          '/api/auth/login',
+          data: {'email': email, 'password': password, 'deviceName': 'Android'},
+        );
     await _save(r.data!);
   }
 
   Future<void> pairElder(String code) async {
-    final r = await ref.read(authDioProvider).post<Map<String, dynamic>>('/api/auth/elder-pair',
-        data: {'code': code, 'deviceName': 'Điện thoại người già'});
+    final r = await ref
+        .read(authDioProvider)
+        .post<Map<String, dynamic>>('/api/auth/elder-pair', data: {'code': code, 'deviceName': 'Điện thoại người già'});
     await _save(r.data!);
   }
 
@@ -91,8 +112,9 @@ class SessionNotifier extends AsyncNotifier<Session?> {
     final current = state.value;
     if (current == null) return null;
     try {
-      final r = await ref.read(authDioProvider).post<Map<String, dynamic>>('/api/auth/refresh',
-          data: {'refreshToken': current.refreshToken});
+      final r = await ref
+          .read(authDioProvider)
+          .post<Map<String, dynamic>>('/api/auth/refresh', data: {'refreshToken': current.refreshToken});
       await _save(r.data!);
       return state.value?.accessToken;
     } on DioException catch (e) {
@@ -104,6 +126,7 @@ class SessionNotifier extends AsyncNotifier<Session?> {
   }
 
   Future<void> logout() async {
+    await ref.read(pushProvider).stop();
     final current = state.value;
     if (current != null) {
       try {

@@ -6,6 +6,8 @@ import java.util.List;
 import jakarta.validation.Valid;
 
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -16,6 +18,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import vn.antam.auth.CurrentUser;
 import vn.antam.care.CareDtos.AlertResponse;
+import vn.antam.care.CareDtos.CalendarDay;
+import vn.antam.care.CareDtos.DayView;
+import vn.antam.care.CareDtos.MarkRequest;
+import vn.antam.care.CareDtos.MarkResult;
 import vn.antam.care.CareDtos.DoseLogResponse;
 import vn.antam.care.CareDtos.DoseReportRequest;
 import vn.antam.care.CareDtos.DoseReportResult;
@@ -26,9 +32,11 @@ import vn.antam.care.CareDtos.ElderAlertRequest;
 public class CareController {
 
     private final CareService service;
+    private final TodayService today;
 
-    public CareController(CareService service) {
+    public CareController(CareService service, TodayService today) {
         this.service = service;
+        this.today = today;
     }
 
     /** The elder's phone, after an alarm. Safe to resend: the same clientEventId returns the stored result. */
@@ -66,5 +74,36 @@ public class CareController {
     public List<DoseLogResponse> doses(@CurrentUser Long me, @PathVariable Long groupId, @PathVariable Long elderUserId,
                                        @RequestParam LocalDate date) {
         return service.dosesOn(me, groupId, elderUserId, date);
+    }
+
+    /** The caregiver's "Hôm nay" timeline for one elder (any date in the last week works the same). */
+    @GetMapping("/groups/{groupId}/elders/{elderUserId}/day")
+    public DayView day(@CurrentUser Long me, @PathVariable Long groupId, @PathVariable Long elderUserId,
+                       @RequestParam LocalDate date) {
+        return today.day(me, groupId, elderUserId, date);
+    }
+
+    @GetMapping("/groups/{groupId}/elders/{elderUserId}/calendar")
+    public List<CalendarDay> calendar(@CurrentUser Long me, @PathVariable Long groupId, @PathVariable Long elderUserId,
+                                      @RequestParam LocalDate from, @RequestParam LocalDate to) {
+        return today.calendar(me, groupId, elderUserId, from, to);
+    }
+
+    @PostMapping("/groups/{groupId}/elders/{elderUserId}/doses")
+    public MarkResult mark(@CurrentUser Long me, @PathVariable Long groupId, @PathVariable Long elderUserId,
+                           @Valid @RequestBody MarkRequest r) {
+        try {
+            return today.mark(me, groupId, elderUserId, r);
+        } catch (DataIntegrityViolationException raced) {
+            // Elder's answer (or another caregiver) arrived at the same moment: report what is stored now.
+            return today.mark(me, groupId, elderUserId, r);
+        }
+    }
+
+    @DeleteMapping("/groups/{groupId}/elders/{elderUserId}/doses/{doseLogId}")
+    public ResponseEntity<Void> undo(@CurrentUser Long me, @PathVariable Long groupId, @PathVariable Long elderUserId,
+                                     @PathVariable Long doseLogId) {
+        today.undo(me, groupId, elderUserId, doseLogId);
+        return ResponseEntity.noContent().build();
     }
 }

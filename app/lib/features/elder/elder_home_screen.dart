@@ -113,6 +113,9 @@ class _ElderHomeScreenState extends ConsumerState<ElderHomeScreen> {
             ? const <DoseSlot>[]
             : s.dosesOn(_now).where((d) => d.statusAt(_now) != DoseStatus.notApplicable).toList();
         final next = s?.nextDose(_now);
+        final exercises = s == null
+            ? const <ExerciseSlot>[]
+            : s.exercisesOn(_now).where((e) => e.statusAt(_now) != DoseStatus.notApplicable).toList();
         return Scaffold(
           body: SafeArea(
             child: RefreshIndicator(
@@ -192,6 +195,20 @@ class _ElderHomeScreenState extends ConsumerState<ElderHomeScreen> {
                     Text(s.meds.isEmpty ? 'Chưa có thuốc nào. Khi con đặt lịch, thuốc sẽ hiện ở đây.' : 'Hôm nay không có thuốc.',
                         style: text.bodyLarge),
                   for (final d in today) _DoseCard(slot: d, now: _now),
+                  if (exercises.isNotEmpty) ...[
+                    const SizedBox(height: AppSpacing.lg),
+                    Semantics(header: true, child: Text('Tập thể dục hôm nay', style: text.titleLarge)),
+                    const SizedBox(height: AppSpacing.sm),
+                    for (final e in exercises)
+                      _ExerciseRow(
+                        slot: e,
+                        now: _now,
+                        onGo: () async {
+                          await ref.read(outboxProvider).reportExercise(exerciseId: e.exercise.id, day: e.at);
+                          await ref.read(elderScheduleProvider.notifier).reloadLocal();
+                        },
+                      ),
+                  ],
                   const SizedBox(height: AppSpacing.xl),
                   TextButton.icon(
                     onPressed: () => context.push('/readiness'),
@@ -328,6 +345,61 @@ class _NextCard extends StatelessWidget {
             ]),
           ]),
         ),
+      ),
+    );
+  }
+}
+
+/// One exercise of today; "Tôi đi tập đây" once it is time (or later), "Đã tập" after.
+class _ExerciseRow extends StatelessWidget {
+  const _ExerciseRow({required this.slot, required this.now, required this.onGo});
+
+  final ExerciseSlot slot;
+  final DateTime now;
+  final VoidCallback onGo;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final st = slot.statusAt(now);
+    final (label, icon, color, soft) = st == DoseStatus.taken
+        ? ('Đã tập', Icons.check_circle, AppColors.ok, AppColors.okSoft)
+        : st == DoseStatus.missed
+            ? ('Chưa tập', Icons.error_outline, AppColors.warn, AppColors.warnSoft)
+            : statusLook(st);
+    final e = slot.exercise;
+    return Card(
+      color: soft,
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Icon(Icons.directions_walk, size: 56, color: AppColors.ok),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(hhmm(slot.at), style: text.titleLarge?.copyWith(color: color, fontWeight: FontWeight.w800)),
+                Text(e.title, style: text.titleMedium),
+                if (e.durationMin != null) Text('${e.durationMin} phút', style: text.bodyLarge),
+                Row(children: [
+                  Icon(icon, color: color, size: 24),
+                  const SizedBox(width: AppSpacing.xs),
+                  Flexible(child: Text(label == 'Đến giờ uống' ? 'Đến giờ tập' : label,
+                      style: text.bodyLarge?.copyWith(color: color, fontWeight: FontWeight.w700))),
+                ]),
+              ]),
+            ),
+          ]),
+          if (st == DoseStatus.due || st == DoseStatus.missed) ...[
+            const SizedBox(height: AppSpacing.sm),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(backgroundColor: AppColors.ok, minimumSize: const Size.fromHeight(72)),
+              onPressed: onGo,
+              icon: const Icon(Icons.directions_walk, size: 32),
+              label: const Text('TÔI ĐI TẬP ĐÂY'),
+            ),
+          ],
+        ]),
       ),
     );
   }

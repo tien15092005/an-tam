@@ -25,3 +25,13 @@ backend/.gradle/
 # AI service
 ai-service/.venv/
 ai-service/.pytest_cache/
+
+# Firebase service account and other local secrets
+secrets/
+*-firebase-adminsdk-*.json
+
+# Database backups (contain family data)
+backups/
+
+# Android release signing (team leader only)
+key.properties

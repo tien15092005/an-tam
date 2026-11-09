@@ -8,6 +8,7 @@ import '../../core/network/api_client.dart';
 import '../../core/theme/tokens.dart';
 import '../groups/code_dialog.dart';
 import 'med_photo.dart';
+import '../ocr/ocr_scan_screen.dart';
 import 'medications_api.dart';
 import 'medications_screen.dart' show weekdayShort;
 
@@ -23,11 +24,15 @@ class _NewPhoto {
 
 /// Add or edit one medication (owner only): what it is, what it looks like, and when to take it.
 class MedicationFormScreen extends ConsumerStatefulWidget {
-  const MedicationFormScreen({super.key, required this.groupId, required this.elderUserId, this.existing});
+  const MedicationFormScreen(
+      {super.key, required this.groupId, required this.elderUserId, this.existing, this.startDate});
 
   final int groupId;
   final int elderUserId;
   final Medication? existing;
+
+  /// A new medicine starts on the day picked in the calendar (plan §10).
+  final DateTime? startDate;
 
   @override
   ConsumerState<MedicationFormScreen> createState() => _MedicationFormScreenState();
@@ -36,7 +41,9 @@ class MedicationFormScreen extends ConsumerStatefulWidget {
 class _MedicationFormScreenState extends ConsumerState<MedicationFormScreen> {
   final _form = GlobalKey<FormState>();
   late final MedicationDraft _d =
-      widget.existing == null ? MedicationDraft(times: ['08:00']) : MedicationDraft.of(widget.existing!);
+      widget.existing == null
+          ? MedicationDraft(times: ['08:00'], startDate: widget.startDate)
+          : MedicationDraft.of(widget.existing!);
   late final _name = TextEditingController(text: _d.name);
   late final _strength = TextEditingController(text: _d.strength);
   late final _dosage = TextEditingController(text: _d.dosage ?? (widget.existing == null ? '1 viên' : null));
@@ -204,6 +211,25 @@ class _MedicationFormScreenState extends ConsumerState<MedicationFormScreen> {
           child: ListView(
             padding: const EdgeInsets.all(AppSpacing.md),
             children: [
+              if (!_editing) ...[
+                // Two ways in on the same screen (plan §8): type it, or "Quét OCR".
+                OutlinedButton.icon(
+                  key: const Key('scanOcr'),
+                  style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(56)),
+                  onPressed: () async {
+                    final created = await Navigator.of(context).push<bool>(MaterialPageRoute(
+                      builder: (_) => OcrScanScreen(
+                          groupId: widget.groupId, elderUserId: widget.elderUserId, startDate: widget.startDate),
+                    ));
+                    if (created == true && context.mounted) Navigator.of(context).pop(true);
+                  },
+                  icon: const Icon(Icons.document_scanner_outlined),
+                  label: const Text('Quét OCR (toa thuốc, vỏ hộp, hóa đơn)'),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Text('hoặc nhập tay', textAlign: TextAlign.center, style: text.bodySmall),
+                gap,
+              ],
               Text('Thuốc gì', style: text.titleMedium),
               gap,
               TextFormField(

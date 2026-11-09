@@ -40,6 +40,50 @@ class ElderMed {
 
 String doseKey(int medicationId, DateTime minute) => '$medicationId@${minute.millisecondsSinceEpoch}';
 
+/// One exercise reminder (plan §9: same alarm, its own words and a "TÔI ĐI TẬP ĐÂY" button).
+class ElderExercise {
+  const ElderExercise({
+    required this.id,
+    required this.title,
+    required this.time,
+    required this.daysMask,
+    this.durationMin,
+    this.note,
+    required this.startDate,
+    this.endDate,
+    required this.createdAt,
+  });
+
+  final int id;
+  final String title;
+  final TimeOfDose time;
+  final int daysMask;
+  final int? durationMin;
+  final String? note;
+  final DateTime startDate;
+  final DateTime? endDate;
+  final DateTime createdAt;
+
+  List<DateTime> timesBetween(DateTime from, DateTime to) =>
+      expandSchedule(times: [time], daysMask: daysMask, startDate: startDate, endDate: endDate, from: from, to: to);
+
+  /// "Đi bộ, 20 phút"
+  String get spoken => [title, if (durationMin != null) '$durationMin phút'].join(', ');
+}
+
+String exerciseKey(int exerciseId, DateTime day) => '$exerciseId@${dateOnly(day).millisecondsSinceEpoch}';
+
+class ExerciseSlot {
+  const ExerciseSlot(this.at, this.exercise, {required this.done});
+  final DateTime at;
+  final ElderExercise exercise;
+  final bool done;
+
+  /// DONE shows as taken; otherwise the same clock rules as a dose.
+  DoseStatus statusAt(DateTime now) =>
+      doseStatusOf(due: at, now: now, createdAt: exercise.createdAt, logStatus: done ? 'TAKEN' : null);
+}
+
 class DoseSlot {
   const DoseSlot(this.at, this.med, [this.logStatus]);
   final DateTime at;
@@ -59,6 +103,8 @@ class ElderSchedule {
     this.lastSynced,
     this.offline = false,
     this.logs = const {},
+    this.exercises = const [],
+    this.exercisesDone = const {},
   });
 
   static const empty = ElderSchedule(callName: '', version: -1, meds: []);
@@ -74,13 +120,32 @@ class ElderSchedule {
   /// Answers per dose, keyed by [doseKey].
   final Map<String, String> logs;
 
-  ElderSchedule copyWith({bool? offline, Map<String, String>? logs}) => ElderSchedule(
+  final List<ElderExercise> exercises;
+
+  /// Exercises the elder went to, keyed by [exerciseKey].
+  final Set<String> exercisesDone;
+
+  ElderSchedule copyWith({bool? offline, Map<String, String>? logs, Set<String>? exercisesDone}) => ElderSchedule(
       callName: callName,
       version: version,
       meds: meds,
       lastSynced: lastSynced,
       offline: offline ?? this.offline,
-      logs: logs ?? this.logs);
+      logs: logs ?? this.logs,
+      exercises: exercises,
+      exercisesDone: exercisesDone ?? this.exercisesDone);
+
+  List<ExerciseSlot> exercisesOn(DateTime day) {
+    final d = dateOnly(day);
+    return [
+      for (final e in exercises)
+        for (final at in e.timesBetween(d, d)) ExerciseSlot(at, e, done: exercisesDone.contains(exerciseKey(e.id, at))),
+    ]..sort((a, b) => a.at.compareTo(b.at));
+  }
+
+  /// Exercises due at exactly this minute.
+  List<ElderExercise> exercisesAt(DateTime minute) =>
+      [for (final s in exercisesOn(minute)) if (s.at == minute) s.exercise];
 
   /// Doses on one calendar day, by time.
   List<DoseSlot> dosesOn(DateTime day) {
@@ -118,6 +183,14 @@ String speechFor(String callName, List<ElderMed> meds) {
   return '$whođến giờ uống thuốc rồi ạ. $count${parts.join('. ')}. Uống xong, ${callName.isEmpty ? '' : '$callName '}bấm nút màu xanh.';
 }
 
+/// Exercise-only alarm, or the tail added after the medicines when both share a minute.
+String exerciseSpeechFor(String callName, List<ElderExercise> exercises, {bool afterMeds = false}) {
+  final list = exercises.map((e) => e.spoken).join('. ');
+  if (afterMeds) return ' Sau đó đến giờ tập: $list.';
+  final who = callName.isEmpty ? '' : '$callName ơi, ';
+  return '$whođến giờ tập thể dục rồi ạ. $list. Đi tập thì ${callName.isEmpty ? '' : '$callName '}bấm nút màu xanh.';
+}
+
 String titleFor(List<ElderMed> meds) => meds.isEmpty ? 'Đến giờ uống thuốc' : 'Uống thuốc: ${meds.map((m) => m.name).join(', ')}';
 
 /// One alarm per minute that has doses, for [days] days from [now]. Doses at the same minute share
@@ -126,6 +199,7 @@ List<ScheduledAlarm> buildAlarms(ElderSchedule s, DateTime now, {int days = 7}) 
   final today = dateOnly(now);
   final last = DateTime(today.year, today.month, today.day + days - 1);
   final byMinute = <DateTime, List<ElderMed>>{};
+  final exByMinute = <DateTime, List<ElderExercise>>{};
   for (final m in s.meds) {
     for (final at in m.dosesBetween(today, last)) {
       if (!at.isAfter(now)) continue;
@@ -136,9 +210,35 @@ List<ScheduledAlarm> buildAlarms(ElderSchedule s, DateTime now, {int days = 7}) 
       byMinute.putIfAbsent(at, () => []).add(m);
     }
   }
-  final minutes = byMinute.keys.toList()..sort();
+  for (final e in s.exercises) {
+    for (final at in e.timesBetween(today, last)) {
+      if (!at.isAfter(now)) continue;
+      if (doseStatusOf(due: at, now: now, createdAt: e.createdAt) == DoseStatus.notApplicable) continue;
+      if (s.exercisesDone.contains(exerciseKey(e.id, at))) continue;
+      exByMinute.putIfAbsent(at, () => []).add(e);
+    }
+  }
+  // Medicines and exercises at the same minute share one alarm.
+  final minutes = {...byMinute.keys, ...exByMinute.keys}.toList()..sort();
   return [
     for (final at in minutes)
-      ScheduledAlarm(id: alarmIdForMinute(at), at: at, title: titleFor(byMinute[at]!), speech: speechFor(s.callName, byMinute[at]!)),
+      _alarmFor(s.callName, at, byMinute[at] ?? const [], exByMinute[at] ?? const []),
   ];
+}
+
+ScheduledAlarm _alarmFor(String callName, DateTime at, List<ElderMed> meds, List<ElderExercise> exercises) {
+  if (meds.isEmpty) {
+    return ScheduledAlarm(
+      id: alarmIdForMinute(at),
+      at: at,
+      title: 'Tập thể dục: ${exercises.map((e) => e.title).join(', ')}',
+      speech: exerciseSpeechFor(callName, exercises),
+    );
+  }
+  return ScheduledAlarm(
+    id: alarmIdForMinute(at),
+    at: at,
+    title: titleFor(meds),
+    speech: speechFor(callName, meds) + (exercises.isEmpty ? '' : exerciseSpeechFor(callName, exercises, afterMeds: true)),
+  );
 }

@@ -118,6 +118,81 @@ Bấm "Báo sau 15 giây / 1 phút / 5 phút" trong màn hình Thử nghiệm b�
 - Trả lời bằng giọng nói chưa thử thật: máy ảo không có micro. Logic nhận dạng câu đã có test.
 - Chưa có người ngoài nhóm từ 55 tuổi thử; chưa thử trên Samsung thật.
 
+## Giai đoạn 6: Hôm nay và thông báo (09/11/2026)
+
+**Test tự động:** backend `TodayTest` 10 test; app thêm test model ngày, trạng thái, merge hàng đợi và một test widget bố cục dòng thời gian.
+
+| Tiêu chí DoD | Kết quả | Bằng chứng |
+|---|---|---|
+| Mọi thành viên nhận báo cáo, không trùng | Đạt (đến hàng đợi thông báo) | `anElderReportReachesEveryCaregiverExactlyOnceEvenWhenResent`: gửi 3 lần cùng báo cáo → mỗi người con đúng 1 thông báo; người đánh dấu giúp không tự nhận thông báo của mình |
+| Có đo độ trễ | Đạt một phần | Hàng đợi đo tạo → giao cho FCM (`antam.notifications.latency`, có test). Độ trễ FCM tới điện thoại **chưa đo** vì chưa có project Firebase |
+| Tắt rồi bật laptop vẫn quét bù | Đạt | Test `afterTheLaptopWasOffTheSweepCatchesUp...`. Thật: backend khởi động lại lúc 13:50 đã tự tạo 2 cảnh báo "chưa xác nhận" cho các liều 04:06 và 08:00 bị lỡ trước đó (`phase6-today.png`) |
+| Đánh dấu giúp dừng báo trên máy người già | Đạt trên máy ảo | Báo thức Vitamin C kêu 14:08:08, người con đánh dấu 14:08:12, máy người già dừng 14:08:23 (11 giây, theo vòng hỏi 20 giây); trang chính hiện "Đã uống". Đánh dấu Losartan từ giao diện người con: hiện "Chi Hoa đánh dấu giúp lúc 23:14", cảnh báo chưa xác nhận tự đóng (số cảnh báo 5 → 4) |
+
+**Lỗi tìm được và đã sửa:** tab Hôm nay đơ khi có nút trong hàng (theme cho nút rộng vô hạn); ngay sau khi đăng nhập app báo 401 do `meProvider` bị giữ từ trước khi đăng nhập.
+
+**Chưa làm / chưa thử:** thông báo đẩy thật (cần Firebase của nhóm, xem SETUP); Samsung thật.
+
+## Giai đoạn 7: Lịch và lịch tập (09/11/2026)
+
+**Test tự động:** backend `ExerciseTest` 6 test; app thêm 4 test báo thức bài tập và chấm lịch.
+
+| Tiêu chí DoD | Kết quả | Bằng chứng |
+|---|---|---|
+| Chấm trạng thái đúng | Đạt | `calendarDotsCountTakenMissedAndDoneDays`; test app cho màu và nhãn TalkBack. Máy ảo: ngày 9 chấm đỏ (còn liều chưa xác nhận), các ngày sau chấm "còn lần sắp tới", trước ngày bắt đầu không có chấm (`phase7-month.png`) |
+| Lịch thứ 2-4-6 báo đúng ngày | Đạt | Backend: 14 ngày liên tiếp chỉ có lịch vào T2, T4, T6. App: `buildAlarms` chỉ tạo báo thức T2, T4, T6. Máy ảo: báo thức tập 23:28:04 hiện "Đến giờ tập thể dục" và nút TÔI ĐI TẬP ĐÂY, đọc giọng tiếng Việt, bấm thì dừng và server ghi `exercise_logs` (`phase7-exercise-alarm.png`) |
+| Thành viên chỉ xem | Đạt | Thành viên thêm, sửa, xóa lịch tập đều 403; giao diện ẩn nút thêm, sửa với thành viên |
+
+## Giai đoạn 8: Quét OCR và AI (09/11/2026)
+
+**Test tự động:** AI service 26 test (6 ca bắt buộc của kế hoạch, bản không dấu, dòng hành chính, văn bản không có thuốc, chống tự bịa, bao bì, hóa đơn, lọc thông tin cá nhân, lỗi OCR chữ O); backend `OcrTest` 2 test; app thêm test lọc thông tin cá nhân.
+
+| Tiêu chí DoD | Kết quả | Bằng chứng |
+|---|---|---|
+| Bộ kiểm thử đạt | Đạt | 6 ca toa thuốc bắt buộc đúng từng trường |
+| Có báo cáo so sánh bản nền và mô hình | Đạt một phần | `ai-service/evaluation/REPORT.md`: bản nền trên 32 mẫu, nhóm test: toa thuốc 12/12 đúng mọi trường, bao bì 4/5, hóa đơn 6/8, **0 lần tự bịa**. Chưa thử mô hình vì cần nhóm đồng ý dùng AI bên ngoài |
+| Không tạo được thuốc khi chưa duyệt | Đạt | Không có API nào tạo thuốc từ OCR; app chỉ tạo khi bấm "Lưu" ở màn hình duyệt, và bắt chọn giờ khi giấy không ghi |
+| Tắt AI vẫn nhập tay được | Đạt | Không có AI service → 503 `ai_unavailable` (test), app hiện nút "Nhập tay" |
+
+**Thử trên máy ảo:** ảnh toa thuốc giả → cắt ảnh → ML Kit đọc trên máy → bỏ 2 dòng cá nhân (họ tên, chẩn đoán) → màn hình duyệt có Amlodipin 5mg, 1 viên, 07:30 và Metformin, 07:30 + 20:00, 30 ngày, "Uống trong bữa ăn" (`phase8-review.png`). Lưu → server có 2 thuốc nguồn `OCR_PRESCRIPTION`. Log backend và AI không chứa nội dung giấy tờ.
+
+**Lỗi tìm được:** ML Kit đọc "500mg" thành "50Omg" (`phase8-review-ocr-error.png`) → AI service nay sửa; backend gọi AI bị 422 do xin nâng cấp h2c → ép HTTP/1.1.
+
+**Chưa làm:** thử với ảnh chụp thật (giấy in, ánh sáng thật) và với bao bì, hóa đơn thật.
+
+## Giai đoạn 9: Chat nhóm (09/11/2026)
+
+**Test tự động:** backend `ChatTest` 5 test, `ChatSocketTest` 1 test (WebSocket thật trên cổng ngẫu nhiên); app thêm 3 test gộp tin.
+
+| Tiêu chí DoD | Kết quả | Bằng chứng |
+|---|---|---|
+| Người ngoài nhóm không kết nối hay đọc được | Đạt | Không token: bắt tay bị từ chối; người ngoài đăng ký nhóm nhận `not_found` và không nhận tin; người bị xóa khỏi nhóm không nhận thêm tin dù socket còn mở; REST trả 404 (người ngoài), 403 (người già) |
+| Mất mạng rồi gửi lại không trùng | Đạt | Gửi 2 lần cùng `clientMessageId` → 1 tin; app giữ tin lỗi kèm nút gửi lại với cùng id |
+| 2 máy nhận tin thời gian thực | Đạt (2 phiên) | Test: tin của trưởng nhóm tới socket của thành viên trong **80 ms**. Máy ảo: "Đang kết nối trực tiếp", tin gửi từ máy khác hiện ngay (`phase9-chat.png`). Chưa thử 2 điện thoại thật |
+
+## Giai đoạn 10: Admin (09/11/2026)
+
+**Test tự động:** backend `AdminTest` 3 test.
+
+| Tiêu chí DoD | Kết quả | Bằng chứng |
+|---|---|---|
+| Admin không đọc được thuốc, ảnh, chat (có test) | Đạt | Admin gọi 8 API của nhóm (chi tiết nhóm, thuốc, ảnh, chat, cảnh báo, ngày, liều, lịch tập) đều 404; kết quả tìm tài khoản không có dữ liệu sức khỏe |
+| Khóa tài khoản làm mất phiên | Đạt | Sau khi khóa, access token còn hạn bị từ chối ngay (401 `account_disabled`), refresh token bị thu hồi; mở khóa thì đăng nhập lại được |
+
+## Giai đoạn 11: Hoàn thiện (09/11/2026)
+
+**Test tự động:** backend `AccountDeletionTest` 2 test.
+
+| Tiêu chí DoD | Kết quả | Bằng chứng |
+|---|---|---|
+| Đồng ý và xóa dữ liệu | Đạt | Màn hình đồng ý hiện trước mọi màn hình trên máy ảo (`phase11-consent.png`). Xóa tài khoản: email, mật khẩu, số điện thoại bị xóa, phiên mất; người con cuối cùng xóa luôn dữ liệu cá nhân của bố mẹ, thuốc, tin nhắn; email dùng lại được |
+| Sao lưu, lint, coverage, dữ liệu demo giả | Đạt | `scripts/backup.ps1`, `scripts/seed_demo.py`; `flutter analyze` sạch; CI chạy coverage cho app |
+| Cài APK trên máy sạch, chạy hết kịch bản nghiệm thu | **Chưa** | Cần keystore của nhóm trưởng cho APK phát hành và 3 điện thoại thật; mục 13 của kế hoạch |
+
+**Tổng test tự động lúc kết thúc Giai đoạn 11:** backend **89/89**, app **84/84**, AI service **26/26**, `flutter analyze` không có lỗi.
+
+**Vấn đề môi trường:** máy nhóm trưởng thiếu RAM (còn khoảng 0,5–1 GB trống khi chạy Docker, máy ảo và Android Studio), máy ảo nhiều lần báo "System UI isn't responding". Nên tắt bớt ứng dụng khi demo, hoặc demo trên điện thoại thật.
+
 **Vấn đề phát hiện (Giai đoạn 1):**
 
 - Thư mục dự án nằm trong OneDrive. OneDrive giữ file trong `app/build` làm `flutter test` và build Android lỗi ngẫu nhiên. Tạm xử lý bằng cách xóa `app/build` rồi chạy lại.

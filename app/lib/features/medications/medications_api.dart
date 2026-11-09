@@ -141,6 +141,9 @@ class MedicationDraft {
   DateTime? startDate;
   DateTime? endDate;
 
+  /// MANUAL, or OCR_PRESCRIPTION / OCR_PACKAGE / OCR_INVOICE after "Quét OCR".
+  String source = 'MANUAL';
+
   static String? _d(DateTime? d) => d == null
       ? null
       : '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
@@ -158,7 +161,7 @@ class MedicationDraft {
         'daysOfWeek': daysOfWeek,
         'startDate': _d(startDate),
         'endDate': _d(endDate),
-        'source': 'MANUAL',
+        'source': source,
       };
 }
 

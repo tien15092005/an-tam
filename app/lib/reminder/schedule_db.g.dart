@@ -1975,6 +1975,773 @@ class LocalDoseLogsCompanion extends UpdateCompanion<LocalDoseLog> {
   }
 }
 
+class $CachedExercisesTable extends CachedExercises
+    with TableInfo<$CachedExercisesTable, CachedExercise> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CachedExercisesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _timeMeta = const VerificationMeta('time');
+  @override
+  late final GeneratedColumn<String> time = GeneratedColumn<String>(
+    'time',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _daysMaskMeta = const VerificationMeta(
+    'daysMask',
+  );
+  @override
+  late final GeneratedColumn<int> daysMask = GeneratedColumn<int>(
+    'days_mask',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _durationMinMeta = const VerificationMeta(
+    'durationMin',
+  );
+  @override
+  late final GeneratedColumn<int> durationMin = GeneratedColumn<int>(
+    'duration_min',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+    'note',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _startDateMeta = const VerificationMeta(
+    'startDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> startDate = GeneratedColumn<DateTime>(
+    'start_date',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _endDateMeta = const VerificationMeta(
+    'endDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> endDate = GeneratedColumn<DateTime>(
+    'end_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    title,
+    time,
+    daysMask,
+    durationMin,
+    note,
+    startDate,
+    endDate,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'cached_exercises';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<CachedExercise> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('time')) {
+      context.handle(
+        _timeMeta,
+        time.isAcceptableOrUnknown(data['time']!, _timeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_timeMeta);
+    }
+    if (data.containsKey('days_mask')) {
+      context.handle(
+        _daysMaskMeta,
+        daysMask.isAcceptableOrUnknown(data['days_mask']!, _daysMaskMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_daysMaskMeta);
+    }
+    if (data.containsKey('duration_min')) {
+      context.handle(
+        _durationMinMeta,
+        durationMin.isAcceptableOrUnknown(
+          data['duration_min']!,
+          _durationMinMeta,
+        ),
+      );
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+        _noteMeta,
+        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
+      );
+    }
+    if (data.containsKey('start_date')) {
+      context.handle(
+        _startDateMeta,
+        startDate.isAcceptableOrUnknown(data['start_date']!, _startDateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_startDateMeta);
+    }
+    if (data.containsKey('end_date')) {
+      context.handle(
+        _endDateMeta,
+        endDate.isAcceptableOrUnknown(data['end_date']!, _endDateMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  CachedExercise map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CachedExercise(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      time: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}time'],
+      )!,
+      daysMask: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}days_mask'],
+      )!,
+      durationMin: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}duration_min'],
+      ),
+      note: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note'],
+      ),
+      startDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}start_date'],
+      )!,
+      endDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}end_date'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $CachedExercisesTable createAlias(String alias) {
+    return $CachedExercisesTable(attachedDatabase, alias);
+  }
+}
+
+class CachedExercise extends DataClass implements Insertable<CachedExercise> {
+  final int id;
+  final String title;
+
+  /// "06:30"
+  final String time;
+  final int daysMask;
+  final int? durationMin;
+  final String? note;
+  final DateTime startDate;
+  final DateTime? endDate;
+  final DateTime createdAt;
+  const CachedExercise({
+    required this.id,
+    required this.title,
+    required this.time,
+    required this.daysMask,
+    this.durationMin,
+    this.note,
+    required this.startDate,
+    this.endDate,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['title'] = Variable<String>(title);
+    map['time'] = Variable<String>(time);
+    map['days_mask'] = Variable<int>(daysMask);
+    if (!nullToAbsent || durationMin != null) {
+      map['duration_min'] = Variable<int>(durationMin);
+    }
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
+    map['start_date'] = Variable<DateTime>(startDate);
+    if (!nullToAbsent || endDate != null) {
+      map['end_date'] = Variable<DateTime>(endDate);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  CachedExercisesCompanion toCompanion(bool nullToAbsent) {
+    return CachedExercisesCompanion(
+      id: Value(id),
+      title: Value(title),
+      time: Value(time),
+      daysMask: Value(daysMask),
+      durationMin: durationMin == null && nullToAbsent
+          ? const Value.absent()
+          : Value(durationMin),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      startDate: Value(startDate),
+      endDate: endDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endDate),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory CachedExercise.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CachedExercise(
+      id: serializer.fromJson<int>(json['id']),
+      title: serializer.fromJson<String>(json['title']),
+      time: serializer.fromJson<String>(json['time']),
+      daysMask: serializer.fromJson<int>(json['daysMask']),
+      durationMin: serializer.fromJson<int?>(json['durationMin']),
+      note: serializer.fromJson<String?>(json['note']),
+      startDate: serializer.fromJson<DateTime>(json['startDate']),
+      endDate: serializer.fromJson<DateTime?>(json['endDate']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'title': serializer.toJson<String>(title),
+      'time': serializer.toJson<String>(time),
+      'daysMask': serializer.toJson<int>(daysMask),
+      'durationMin': serializer.toJson<int?>(durationMin),
+      'note': serializer.toJson<String?>(note),
+      'startDate': serializer.toJson<DateTime>(startDate),
+      'endDate': serializer.toJson<DateTime?>(endDate),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  CachedExercise copyWith({
+    int? id,
+    String? title,
+    String? time,
+    int? daysMask,
+    Value<int?> durationMin = const Value.absent(),
+    Value<String?> note = const Value.absent(),
+    DateTime? startDate,
+    Value<DateTime?> endDate = const Value.absent(),
+    DateTime? createdAt,
+  }) => CachedExercise(
+    id: id ?? this.id,
+    title: title ?? this.title,
+    time: time ?? this.time,
+    daysMask: daysMask ?? this.daysMask,
+    durationMin: durationMin.present ? durationMin.value : this.durationMin,
+    note: note.present ? note.value : this.note,
+    startDate: startDate ?? this.startDate,
+    endDate: endDate.present ? endDate.value : this.endDate,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  CachedExercise copyWithCompanion(CachedExercisesCompanion data) {
+    return CachedExercise(
+      id: data.id.present ? data.id.value : this.id,
+      title: data.title.present ? data.title.value : this.title,
+      time: data.time.present ? data.time.value : this.time,
+      daysMask: data.daysMask.present ? data.daysMask.value : this.daysMask,
+      durationMin: data.durationMin.present
+          ? data.durationMin.value
+          : this.durationMin,
+      note: data.note.present ? data.note.value : this.note,
+      startDate: data.startDate.present ? data.startDate.value : this.startDate,
+      endDate: data.endDate.present ? data.endDate.value : this.endDate,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CachedExercise(')
+          ..write('id: $id, ')
+          ..write('title: $title, ')
+          ..write('time: $time, ')
+          ..write('daysMask: $daysMask, ')
+          ..write('durationMin: $durationMin, ')
+          ..write('note: $note, ')
+          ..write('startDate: $startDate, ')
+          ..write('endDate: $endDate, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    title,
+    time,
+    daysMask,
+    durationMin,
+    note,
+    startDate,
+    endDate,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CachedExercise &&
+          other.id == this.id &&
+          other.title == this.title &&
+          other.time == this.time &&
+          other.daysMask == this.daysMask &&
+          other.durationMin == this.durationMin &&
+          other.note == this.note &&
+          other.startDate == this.startDate &&
+          other.endDate == this.endDate &&
+          other.createdAt == this.createdAt);
+}
+
+class CachedExercisesCompanion extends UpdateCompanion<CachedExercise> {
+  final Value<int> id;
+  final Value<String> title;
+  final Value<String> time;
+  final Value<int> daysMask;
+  final Value<int?> durationMin;
+  final Value<String?> note;
+  final Value<DateTime> startDate;
+  final Value<DateTime?> endDate;
+  final Value<DateTime> createdAt;
+  const CachedExercisesCompanion({
+    this.id = const Value.absent(),
+    this.title = const Value.absent(),
+    this.time = const Value.absent(),
+    this.daysMask = const Value.absent(),
+    this.durationMin = const Value.absent(),
+    this.note = const Value.absent(),
+    this.startDate = const Value.absent(),
+    this.endDate = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  CachedExercisesCompanion.insert({
+    this.id = const Value.absent(),
+    required String title,
+    required String time,
+    required int daysMask,
+    this.durationMin = const Value.absent(),
+    this.note = const Value.absent(),
+    required DateTime startDate,
+    this.endDate = const Value.absent(),
+    required DateTime createdAt,
+  }) : title = Value(title),
+       time = Value(time),
+       daysMask = Value(daysMask),
+       startDate = Value(startDate),
+       createdAt = Value(createdAt);
+  static Insertable<CachedExercise> custom({
+    Expression<int>? id,
+    Expression<String>? title,
+    Expression<String>? time,
+    Expression<int>? daysMask,
+    Expression<int>? durationMin,
+    Expression<String>? note,
+    Expression<DateTime>? startDate,
+    Expression<DateTime>? endDate,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (title != null) 'title': title,
+      if (time != null) 'time': time,
+      if (daysMask != null) 'days_mask': daysMask,
+      if (durationMin != null) 'duration_min': durationMin,
+      if (note != null) 'note': note,
+      if (startDate != null) 'start_date': startDate,
+      if (endDate != null) 'end_date': endDate,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  CachedExercisesCompanion copyWith({
+    Value<int>? id,
+    Value<String>? title,
+    Value<String>? time,
+    Value<int>? daysMask,
+    Value<int?>? durationMin,
+    Value<String?>? note,
+    Value<DateTime>? startDate,
+    Value<DateTime?>? endDate,
+    Value<DateTime>? createdAt,
+  }) {
+    return CachedExercisesCompanion(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      time: time ?? this.time,
+      daysMask: daysMask ?? this.daysMask,
+      durationMin: durationMin ?? this.durationMin,
+      note: note ?? this.note,
+      startDate: startDate ?? this.startDate,
+      endDate: endDate ?? this.endDate,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (time.present) {
+      map['time'] = Variable<String>(time.value);
+    }
+    if (daysMask.present) {
+      map['days_mask'] = Variable<int>(daysMask.value);
+    }
+    if (durationMin.present) {
+      map['duration_min'] = Variable<int>(durationMin.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    if (startDate.present) {
+      map['start_date'] = Variable<DateTime>(startDate.value);
+    }
+    if (endDate.present) {
+      map['end_date'] = Variable<DateTime>(endDate.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CachedExercisesCompanion(')
+          ..write('id: $id, ')
+          ..write('title: $title, ')
+          ..write('time: $time, ')
+          ..write('daysMask: $daysMask, ')
+          ..write('durationMin: $durationMin, ')
+          ..write('note: $note, ')
+          ..write('startDate: $startDate, ')
+          ..write('endDate: $endDate, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $LocalExerciseLogsTable extends LocalExerciseLogs
+    with TableInfo<$LocalExerciseLogsTable, LocalExerciseLog> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LocalExerciseLogsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _exerciseIdMeta = const VerificationMeta(
+    'exerciseId',
+  );
+  @override
+  late final GeneratedColumn<int> exerciseId = GeneratedColumn<int>(
+    'exercise_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _dayMeta = const VerificationMeta('day');
+  @override
+  late final GeneratedColumn<DateTime> day = GeneratedColumn<DateTime>(
+    'day',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [exerciseId, day];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'local_exercise_logs';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<LocalExerciseLog> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('exercise_id')) {
+      context.handle(
+        _exerciseIdMeta,
+        exerciseId.isAcceptableOrUnknown(data['exercise_id']!, _exerciseIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_exerciseIdMeta);
+    }
+    if (data.containsKey('day')) {
+      context.handle(
+        _dayMeta,
+        day.isAcceptableOrUnknown(data['day']!, _dayMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dayMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {exerciseId, day};
+  @override
+  LocalExerciseLog map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LocalExerciseLog(
+      exerciseId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}exercise_id'],
+      )!,
+      day: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}day'],
+      )!,
+    );
+  }
+
+  @override
+  $LocalExerciseLogsTable createAlias(String alias) {
+    return $LocalExerciseLogsTable(attachedDatabase, alias);
+  }
+}
+
+class LocalExerciseLog extends DataClass
+    implements Insertable<LocalExerciseLog> {
+  final int exerciseId;
+  final DateTime day;
+  const LocalExerciseLog({required this.exerciseId, required this.day});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['exercise_id'] = Variable<int>(exerciseId);
+    map['day'] = Variable<DateTime>(day);
+    return map;
+  }
+
+  LocalExerciseLogsCompanion toCompanion(bool nullToAbsent) {
+    return LocalExerciseLogsCompanion(
+      exerciseId: Value(exerciseId),
+      day: Value(day),
+    );
+  }
+
+  factory LocalExerciseLog.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LocalExerciseLog(
+      exerciseId: serializer.fromJson<int>(json['exerciseId']),
+      day: serializer.fromJson<DateTime>(json['day']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'exerciseId': serializer.toJson<int>(exerciseId),
+      'day': serializer.toJson<DateTime>(day),
+    };
+  }
+
+  LocalExerciseLog copyWith({int? exerciseId, DateTime? day}) =>
+      LocalExerciseLog(
+        exerciseId: exerciseId ?? this.exerciseId,
+        day: day ?? this.day,
+      );
+  LocalExerciseLog copyWithCompanion(LocalExerciseLogsCompanion data) {
+    return LocalExerciseLog(
+      exerciseId: data.exerciseId.present
+          ? data.exerciseId.value
+          : this.exerciseId,
+      day: data.day.present ? data.day.value : this.day,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalExerciseLog(')
+          ..write('exerciseId: $exerciseId, ')
+          ..write('day: $day')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(exerciseId, day);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LocalExerciseLog &&
+          other.exerciseId == this.exerciseId &&
+          other.day == this.day);
+}
+
+class LocalExerciseLogsCompanion extends UpdateCompanion<LocalExerciseLog> {
+  final Value<int> exerciseId;
+  final Value<DateTime> day;
+  final Value<int> rowid;
+  const LocalExerciseLogsCompanion({
+    this.exerciseId = const Value.absent(),
+    this.day = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  LocalExerciseLogsCompanion.insert({
+    required int exerciseId,
+    required DateTime day,
+    this.rowid = const Value.absent(),
+  }) : exerciseId = Value(exerciseId),
+       day = Value(day);
+  static Insertable<LocalExerciseLog> custom({
+    Expression<int>? exerciseId,
+    Expression<DateTime>? day,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (exerciseId != null) 'exercise_id': exerciseId,
+      if (day != null) 'day': day,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  LocalExerciseLogsCompanion copyWith({
+    Value<int>? exerciseId,
+    Value<DateTime>? day,
+    Value<int>? rowid,
+  }) {
+    return LocalExerciseLogsCompanion(
+      exerciseId: exerciseId ?? this.exerciseId,
+      day: day ?? this.day,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (exerciseId.present) {
+      map['exercise_id'] = Variable<int>(exerciseId.value);
+    }
+    if (day.present) {
+      map['day'] = Variable<DateTime>(day.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalExerciseLogsCompanion(')
+          ..write('exerciseId: $exerciseId, ')
+          ..write('day: $day, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$ScheduleDb extends GeneratedDatabase {
   _$ScheduleDb(QueryExecutor e) : super(e);
   $ScheduleDbManager get managers => $ScheduleDbManager(this);
@@ -1984,6 +2751,11 @@ abstract class _$ScheduleDb extends GeneratedDatabase {
   late final $SyncMetaTable syncMeta = $SyncMetaTable(this);
   late final $PendingEventsTable pendingEvents = $PendingEventsTable(this);
   late final $LocalDoseLogsTable localDoseLogs = $LocalDoseLogsTable(this);
+  late final $CachedExercisesTable cachedExercises = $CachedExercisesTable(
+    this,
+  );
+  late final $LocalExerciseLogsTable localExerciseLogs =
+      $LocalExerciseLogsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -1994,6 +2766,8 @@ abstract class _$ScheduleDb extends GeneratedDatabase {
     syncMeta,
     pendingEvents,
     localDoseLogs,
+    cachedExercises,
+    localExerciseLogs,
   ];
 }
 
@@ -3107,6 +3881,452 @@ typedef $$LocalDoseLogsTableProcessedTableManager =
       LocalDoseLog,
       PrefetchHooks Function()
     >;
+typedef $$CachedExercisesTableCreateCompanionBuilder =
+    CachedExercisesCompanion Function({
+      Value<int> id,
+      required String title,
+      required String time,
+      required int daysMask,
+      Value<int?> durationMin,
+      Value<String?> note,
+      required DateTime startDate,
+      Value<DateTime?> endDate,
+      required DateTime createdAt,
+    });
+typedef $$CachedExercisesTableUpdateCompanionBuilder =
+    CachedExercisesCompanion Function({
+      Value<int> id,
+      Value<String> title,
+      Value<String> time,
+      Value<int> daysMask,
+      Value<int?> durationMin,
+      Value<String?> note,
+      Value<DateTime> startDate,
+      Value<DateTime?> endDate,
+      Value<DateTime> createdAt,
+    });
+
+class $$CachedExercisesTableFilterComposer
+    extends Composer<_$ScheduleDb, $CachedExercisesTable> {
+  $$CachedExercisesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get time => $composableBuilder(
+    column: $table.time,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get daysMask => $composableBuilder(
+    column: $table.daysMask,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get durationMin => $composableBuilder(
+    column: $table.durationMin,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get startDate => $composableBuilder(
+    column: $table.startDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get endDate => $composableBuilder(
+    column: $table.endDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$CachedExercisesTableOrderingComposer
+    extends Composer<_$ScheduleDb, $CachedExercisesTable> {
+  $$CachedExercisesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get time => $composableBuilder(
+    column: $table.time,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get daysMask => $composableBuilder(
+    column: $table.daysMask,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get durationMin => $composableBuilder(
+    column: $table.durationMin,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get startDate => $composableBuilder(
+    column: $table.startDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get endDate => $composableBuilder(
+    column: $table.endDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$CachedExercisesTableAnnotationComposer
+    extends Composer<_$ScheduleDb, $CachedExercisesTable> {
+  $$CachedExercisesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get time =>
+      $composableBuilder(column: $table.time, builder: (column) => column);
+
+  GeneratedColumn<int> get daysMask =>
+      $composableBuilder(column: $table.daysMask, builder: (column) => column);
+
+  GeneratedColumn<int> get durationMin => $composableBuilder(
+    column: $table.durationMin,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get startDate =>
+      $composableBuilder(column: $table.startDate, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get endDate =>
+      $composableBuilder(column: $table.endDate, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$CachedExercisesTableTableManager
+    extends
+        RootTableManager<
+          _$ScheduleDb,
+          $CachedExercisesTable,
+          CachedExercise,
+          $$CachedExercisesTableFilterComposer,
+          $$CachedExercisesTableOrderingComposer,
+          $$CachedExercisesTableAnnotationComposer,
+          $$CachedExercisesTableCreateCompanionBuilder,
+          $$CachedExercisesTableUpdateCompanionBuilder,
+          (
+            CachedExercise,
+            BaseReferences<_$ScheduleDb, $CachedExercisesTable, CachedExercise>,
+          ),
+          CachedExercise,
+          PrefetchHooks Function()
+        > {
+  $$CachedExercisesTableTableManager(
+    _$ScheduleDb db,
+    $CachedExercisesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CachedExercisesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CachedExercisesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CachedExercisesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String> time = const Value.absent(),
+                Value<int> daysMask = const Value.absent(),
+                Value<int?> durationMin = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                Value<DateTime> startDate = const Value.absent(),
+                Value<DateTime?> endDate = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => CachedExercisesCompanion(
+                id: id,
+                title: title,
+                time: time,
+                daysMask: daysMask,
+                durationMin: durationMin,
+                note: note,
+                startDate: startDate,
+                endDate: endDate,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String title,
+                required String time,
+                required int daysMask,
+                Value<int?> durationMin = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                required DateTime startDate,
+                Value<DateTime?> endDate = const Value.absent(),
+                required DateTime createdAt,
+              }) => CachedExercisesCompanion.insert(
+                id: id,
+                title: title,
+                time: time,
+                daysMask: daysMask,
+                durationMin: durationMin,
+                note: note,
+                startDate: startDate,
+                endDate: endDate,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$CachedExercisesTable, CachedExercise>(table),
+                  BaseReferences<
+                    _$ScheduleDb,
+                    $CachedExercisesTable,
+                    CachedExercise
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$CachedExercisesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$ScheduleDb,
+      $CachedExercisesTable,
+      CachedExercise,
+      $$CachedExercisesTableFilterComposer,
+      $$CachedExercisesTableOrderingComposer,
+      $$CachedExercisesTableAnnotationComposer,
+      $$CachedExercisesTableCreateCompanionBuilder,
+      $$CachedExercisesTableUpdateCompanionBuilder,
+      (
+        CachedExercise,
+        BaseReferences<_$ScheduleDb, $CachedExercisesTable, CachedExercise>,
+      ),
+      CachedExercise,
+      PrefetchHooks Function()
+    >;
+typedef $$LocalExerciseLogsTableCreateCompanionBuilder =
+    LocalExerciseLogsCompanion Function({
+      required int exerciseId,
+      required DateTime day,
+      Value<int> rowid,
+    });
+typedef $$LocalExerciseLogsTableUpdateCompanionBuilder =
+    LocalExerciseLogsCompanion Function({
+      Value<int> exerciseId,
+      Value<DateTime> day,
+      Value<int> rowid,
+    });
+
+class $$LocalExerciseLogsTableFilterComposer
+    extends Composer<_$ScheduleDb, $LocalExerciseLogsTable> {
+  $$LocalExerciseLogsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get exerciseId => $composableBuilder(
+    column: $table.exerciseId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get day => $composableBuilder(
+    column: $table.day,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$LocalExerciseLogsTableOrderingComposer
+    extends Composer<_$ScheduleDb, $LocalExerciseLogsTable> {
+  $$LocalExerciseLogsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get exerciseId => $composableBuilder(
+    column: $table.exerciseId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get day => $composableBuilder(
+    column: $table.day,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$LocalExerciseLogsTableAnnotationComposer
+    extends Composer<_$ScheduleDb, $LocalExerciseLogsTable> {
+  $$LocalExerciseLogsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get exerciseId => $composableBuilder(
+    column: $table.exerciseId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get day =>
+      $composableBuilder(column: $table.day, builder: (column) => column);
+}
+
+class $$LocalExerciseLogsTableTableManager
+    extends
+        RootTableManager<
+          _$ScheduleDb,
+          $LocalExerciseLogsTable,
+          LocalExerciseLog,
+          $$LocalExerciseLogsTableFilterComposer,
+          $$LocalExerciseLogsTableOrderingComposer,
+          $$LocalExerciseLogsTableAnnotationComposer,
+          $$LocalExerciseLogsTableCreateCompanionBuilder,
+          $$LocalExerciseLogsTableUpdateCompanionBuilder,
+          (
+            LocalExerciseLog,
+            BaseReferences<
+              _$ScheduleDb,
+              $LocalExerciseLogsTable,
+              LocalExerciseLog
+            >,
+          ),
+          LocalExerciseLog,
+          PrefetchHooks Function()
+        > {
+  $$LocalExerciseLogsTableTableManager(
+    _$ScheduleDb db,
+    $LocalExerciseLogsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LocalExerciseLogsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LocalExerciseLogsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LocalExerciseLogsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> exerciseId = const Value.absent(),
+                Value<DateTime> day = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LocalExerciseLogsCompanion(
+                exerciseId: exerciseId,
+                day: day,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required int exerciseId,
+                required DateTime day,
+                Value<int> rowid = const Value.absent(),
+              }) => LocalExerciseLogsCompanion.insert(
+                exerciseId: exerciseId,
+                day: day,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$LocalExerciseLogsTable, LocalExerciseLog>(table),
+                  BaseReferences<
+                    _$ScheduleDb,
+                    $LocalExerciseLogsTable,
+                    LocalExerciseLog
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$LocalExerciseLogsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$ScheduleDb,
+      $LocalExerciseLogsTable,
+      LocalExerciseLog,
+      $$LocalExerciseLogsTableFilterComposer,
+      $$LocalExerciseLogsTableOrderingComposer,
+      $$LocalExerciseLogsTableAnnotationComposer,
+      $$LocalExerciseLogsTableCreateCompanionBuilder,
+      $$LocalExerciseLogsTableUpdateCompanionBuilder,
+      (
+        LocalExerciseLog,
+        BaseReferences<_$ScheduleDb, $LocalExerciseLogsTable, LocalExerciseLog>,
+      ),
+      LocalExerciseLog,
+      PrefetchHooks Function()
+    >;
 
 class $ScheduleDbManager {
   final _$ScheduleDb _db;
@@ -3121,4 +4341,8 @@ class $ScheduleDbManager {
       $$PendingEventsTableTableManager(_db, _db.pendingEvents);
   $$LocalDoseLogsTableTableManager get localDoseLogs =>
       $$LocalDoseLogsTableTableManager(_db, _db.localDoseLogs);
+  $$CachedExercisesTableTableManager get cachedExercises =>
+      $$CachedExercisesTableTableManager(_db, _db.cachedExercises);
+  $$LocalExerciseLogsTableTableManager get localExerciseLogs =>
+      $$LocalExerciseLogsTableTableManager(_db, _db.localExerciseLogs);
 }

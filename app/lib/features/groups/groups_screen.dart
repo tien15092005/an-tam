@@ -70,7 +70,7 @@ class GroupsScreen extends ConsumerWidget {
                     title: Text(g.name),
                     subtitle: Text(g.myRole == GroupRole.owner ? 'Bạn là trưởng nhóm' : 'Thành viên'),
                     trailing: const Icon(Icons.chevron_right),
-                    onTap: () => context.push('/groups/${g.id}'),
+                    onTap: () => context.go('/groups/${g.id}'),
                   ),
                 ),
                 const SizedBox(height: AppSpacing.sm),

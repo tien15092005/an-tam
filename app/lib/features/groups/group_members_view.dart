@@ -4,41 +4,17 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/network/api_client.dart';
 import '../../core/theme/tokens.dart';
-import '../care/care_api.dart';
 import 'code_dialog.dart';
 import 'groups_api.dart';
 
-/// One family group: elders, caregivers, and (for the owner) the management actions.
-class GroupDetailScreen extends ConsumerWidget {
-  const GroupDetailScreen({super.key, required this.groupId});
-
-  final int groupId;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final detail = ref.watch(groupDetailProvider(groupId));
-    return Scaffold(
-      appBar: AppBar(title: Text(detail.value?.name ?? 'Nhóm')),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          ref.invalidate(openAlertsProvider(groupId));
-          ref.invalidate(groupDetailProvider(groupId));
-          await ref.read(groupDetailProvider(groupId).future);
-        },
-        child: detail.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => ListView(padding: const EdgeInsets.all(AppSpacing.md), children: [Text(describeNetworkError(e))]),
-          data: (g) => _GroupBody(group: g),
-        ),
-      ),
-    );
-  }
-}
-
-class _GroupBody extends ConsumerWidget {
-  const _GroupBody({required this.group});
+/// The "Nhóm" tab: elders and caregivers, with the owner's management actions (plan §5).
+class GroupMembersView extends ConsumerWidget {
+  const GroupMembersView({super.key, required this.group, this.embedded = false});
 
   final GroupDetail group;
+
+  /// Inside another list (the settings tab): no own scrolling.
+  final bool embedded;
 
   Future<void> _run(BuildContext context, WidgetRef ref, Future<void> Function() action, {String? done}) async {
     try {
@@ -51,34 +27,6 @@ class _GroupBody extends ConsumerWidget {
     }
   }
 
-  Future<void> _leave(BuildContext context, WidgetRef ref) async {
-    final api = ref.read(groupsApiProvider);
-    if (!await confirm(context, title: 'Rời nhóm?', message: 'Bạn sẽ không còn theo dõi lịch của nhóm này.', action: 'Rời nhóm')) {
-      return;
-    }
-    try {
-      await api.leave(group.id);
-    } catch (e) {
-      if (errorCode(e) != 'confirm_delete_required' || !context.mounted) {
-        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(describeNetworkError(e))));
-        return;
-      }
-      final sure = await confirm(context,
-          title: 'Xóa nhóm?',
-          message: 'Bạn là người con duy nhất trong nhóm. Rời nhóm sẽ xóa nhóm và đăng xuất điện thoại của bố mẹ.',
-          action: 'Xóa nhóm');
-      if (!sure) return;
-      try {
-        await api.leave(group.id, confirmDelete: true);
-      } catch (e) {
-        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(describeNetworkError(e))));
-        return;
-      }
-    }
-    ref.invalidate(meProvider);
-    if (context.mounted) context.pop();
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final api = ref.read(groupsApiProvider);
@@ -87,14 +35,15 @@ class _GroupBody extends ConsumerWidget {
     final caregivers = group.members.where((m) => m.role != GroupRole.elder).toList();
 
     return ListView(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      shrinkWrap: embedded,
+      physics: embedded ? const NeverScrollableScrollPhysics() : null,
+      padding: embedded ? EdgeInsets.zero : const EdgeInsets.all(AppSpacing.md),
       children: [
         Chip(
           avatar: Icon(group.iAmOwner ? Icons.star : Icons.person, size: 18),
           label: Text(group.iAmOwner ? 'Bạn là trưởng nhóm' : 'Bạn là thành viên'),
         ),
         const SizedBox(height: AppSpacing.md),
-        OpenAlertsSection(groupId: group.id),
         Text('Bố mẹ', style: text.titleMedium),
         const SizedBox(height: AppSpacing.sm),
         if (elders.isEmpty) const Text('Chưa có hồ sơ bố mẹ.'),
@@ -192,14 +141,36 @@ class _GroupBody extends ConsumerWidget {
               }
             }),
           ),
-        const SizedBox(height: AppSpacing.xl),
-        OutlinedButton.icon(
-          style: OutlinedButton.styleFrom(foregroundColor: AppColors.danger),
-          icon: const Icon(Icons.logout),
-          label: const Text('Rời nhóm'),
-          onPressed: () => _leave(context, ref),
-        ),
       ],
     );
   }
+}
+
+/// Leaving needs care: an owner must hand over first, and the last caregiver deletes the group.
+Future<void> leaveGroup(BuildContext context, WidgetRef ref, GroupDetail group) async {
+  final api = ref.read(groupsApiProvider);
+  if (!await confirm(context, title: 'Rời nhóm?', message: 'Bạn sẽ không còn theo dõi lịch của nhóm này.', action: 'Rời nhóm')) {
+    return;
+  }
+  try {
+    await api.leave(group.id);
+  } catch (e) {
+    if (errorCode(e) != 'confirm_delete_required' || !context.mounted) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(describeNetworkError(e))));
+      return;
+    }
+    final sure = await confirm(context,
+        title: 'Xóa nhóm?',
+        message: 'Bạn là người con duy nhất trong nhóm. Rời nhóm sẽ xóa nhóm và đăng xuất điện thoại của bố mẹ.',
+        action: 'Xóa nhóm');
+    if (!sure) return;
+    try {
+      await api.leave(group.id, confirmDelete: true);
+    } catch (e) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(describeNetworkError(e))));
+      return;
+    }
+  }
+  ref.invalidate(meProvider);
+  if (context.mounted) context.go('/');
 }

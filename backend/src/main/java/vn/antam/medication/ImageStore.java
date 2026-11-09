@@ -78,6 +78,15 @@ public class ImageStore {
         }
     }
 
+    /** Removes the file of a photo deleted long enough ago; already gone is fine. */
+    public boolean delete(String key) {
+        try {
+            return Files.deleteIfExists(resolve(key));
+        } catch (IOException | ApiException e) {
+            return false;
+        }
+    }
+
     private Path resolve(String key) {
         Path p = root.resolve(key).normalize();
         if (!p.startsWith(root)) throw ApiException.notFound("ảnh"); // never escape the media folder

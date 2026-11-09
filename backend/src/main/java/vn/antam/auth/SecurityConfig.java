@@ -36,7 +36,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    SecurityFilterChain api(HttpSecurity http) throws Exception {
+    SecurityFilterChain api(HttpSecurity http, org.springframework.jdbc.core.JdbcTemplate jdbc) throws Exception {
         http
                 .csrf(csrf -> csrf.disable()) // No cookies: tokens travel in the Authorization header.
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -45,7 +45,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login",
                                 "/api/auth/refresh", "/api/auth/logout", "/api/auth/elder-pair").permitAll()
                         .anyRequest().authenticated())
-                .oauth2ResourceServer(o -> o.jwt(jwt -> { }));
+                .oauth2ResourceServer(o -> o.jwt(jwt -> { }))
+                .addFilterAfter(new DisabledAccountFilter(jdbc),
+                        org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter.class);
         return http.build();
     }
 

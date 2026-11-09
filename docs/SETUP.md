@@ -1,6 +1,6 @@
 # Cài đặt môi trường
 
-Tài liệu này sẽ được hoàn thiện ở Giai đoạn 0, sau khi các bước đã chạy thử thật trên máy.
+Các bước dưới đây đã chạy thử trên máy nhóm trưởng (Windows 11). Đọc README trước để có cái nhìn chung.
 
 ## Công cụ cần có
 
@@ -135,8 +135,77 @@ Nếu máy ảo báo thiếu tăng tốc phần cứng: mở **Turn Windows feat
 
 ## Firebase cho thông báo đẩy (nhóm trưởng)
 
-1. Vào <https://console.firebase.google.com>, chọn **Create a project**, đặt tên `an-tam`, **tắt Google Analytics**. Giữ gói miễn phí, không cần thêm thẻ.
-2. Thêm app Android với package name `vn.antam.app`, tải file `google-services.json`.
-3. Giữ file ở chỗ riêng, không gửi vào chat và không đưa lên Git. Vị trí đặt file sẽ được hướng dẫn khi tạo xong project Flutter.
-4. Không cần bật Authentication hay Firestore. Nếu đã tạo rồi thì để đó, không ảnh hưởng.
-5. Vào **Project settings → Users and permissions**, thêm email của 2 bạn với vai trò **Editor**.
+Không bắt buộc: thiếu Firebase thì app vẫn chạy, chỉ là người con nhận tin khi mở app (tab Hôm nay tự làm mới mỗi 30 giây).
+
+1. Vào <https://console.firebase.google.com>, chọn **Create a project**, đặt tên `an-tam`, **tắt Google Analytics**. Giữ gói miễn phí, không cần thêm thẻ. Nhóm trưởng tự đọc và đồng ý điều khoản.
+2. **Backend:** Project settings → Service accounts → **Generate new private key**. Lưu file thành `secrets/firebase.json` ở thư mục gốc (thư mục này không lên Git), rồi thêm vào `.env`:
+
+   ```text
+   FIREBASE_CREDENTIALS=/secrets/firebase.json
+   ```
+
+3. **App:** Project settings → General → **Add app → Android**, package name `vn.antam.app`. Không cần tải `google-services.json`; chỉ chép 4 giá trị (Web API key, App ID, Sender ID, Project ID) rồi build với:
+
+   ```bash
+   flutter build apk --dart-define=FIREBASE_API_KEY=... --dart-define=FIREBASE_APP_ID=... --dart-define=FIREBASE_SENDER_ID=... --dart-define=FIREBASE_PROJECT_ID=...
+   ```
+
+4. Giữ các giá trị này ở chỗ riêng, không gửi vào chat và không đưa lên Git. Kiểm tra: `docker compose logs backend | findstr FCM` phải thấy "FCM pushes enabled".
+5. Vào **Project settings → Users and permissions**, thêm email của 2 bạn với vai trò **Editor** nếu cần.
+
+## Tài khoản quản trị (admin)
+
+Đặt `ADMIN_EMAIL` và `ADMIN_PASSWORD` (từ 12 ký tự) trong `.env`, rồi `docker compose up -d backend`. Tài khoản được tạo một lần khi backend khởi động; đăng nhập trong app như người con. Admin chỉ thấy số liệu tổng hợp, tìm và khóa tài khoản.
+
+## Dữ liệu demo giả
+
+Khi backend đang chạy:
+
+```bash
+python scripts/seed_demo.py
+```
+
+Script tạo 2 người con, 1 nhóm, bà Lan với 3 thuốc và 1 lịch tập, rồi in email, mật khẩu và mã ghép máy (hết hạn sau 15 phút). Mọi tên và số liệu đều là giả. Với đường hầm: `python scripts/seed_demo.py https://xxxx.trycloudflare.com`.
+
+## Sao lưu và khôi phục
+
+```bash
+powershell -ExecutionPolicy Bypass -File scripts\backup.ps1
+```
+
+Tạo `backups/antam-<thời gian>.sql` và `backups/media-<thời gian>.tgz` (giữ 14 bản gần nhất). Thư mục `backups/` chứa dữ liệu gia đình, không đưa lên Git.
+
+Khôi phục (ghi đè dữ liệu hiện tại), chạy trong `cmd`:
+
+```bash
+type backups\antam-YYYYMMDD-HHMM.sql | docker compose exec -T db psql -U antam -d antam
+```
+
+```bash
+type backups\media-YYYYMMDD-HHMM.tgz | docker compose exec -T backend tar -C /data -xzf -
+```
+
+## APK phát hành
+
+Nhóm trưởng tạo keystore một lần và giữ riêng (không lên Git):
+
+```bash
+keytool -genkey -v -keystore %USERPROFILE%\antam-release.jks -keyalg RSA -keysize 2048 -validity 10000 -alias antam
+```
+
+Tạo `app/android/key.properties` (không lên Git):
+
+```text
+storeFile=C:/Users/<tên>/antam-release.jks
+storePassword=...
+keyAlias=antam
+keyPassword=...
+```
+
+Build:
+
+```bash
+cd app && flutter build apk --release --dart-define=API_BASE_URL=https://xxxx.trycloudflare.com
+```
+
+Bản phát hành chỉ chấp nhận địa chỉ `https://`. Thiếu `key.properties` thì APK được ký bằng khóa debug: chỉ dùng thử, không phát tán.

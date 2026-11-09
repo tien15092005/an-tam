@@ -48,6 +48,8 @@ public final class MedicationDtos {
     /** What the elder's phone downloads to arm its alarms; scheduleVersion changes on every edit. */
     public record ScheduleResponse(Long groupId, Long elderUserId, String callName, String timezone,
                                    long scheduleVersion, List<MedicationResponse> medications,
-                                   List<vn.antam.care.CareDtos.RecentDose> recentDoses) {
+                                   List<vn.antam.care.CareDtos.RecentDose> recentDoses,
+                                   List<vn.antam.exercise.ExerciseDtos.ExerciseResponse> exercises,
+                                   List<vn.antam.exercise.ExerciseDtos.RecentExercise> recentExercises) {
     }
 }

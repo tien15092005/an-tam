@@ -6,7 +6,8 @@ import '../core/theme/tokens.dart';
 import 'auth/session.dart';
 import 'elder/elder_home_screen.dart';
 import 'groups/groups_api.dart';
-import 'groups/groups_screen.dart';
+import 'admin/admin_screen.dart';
+import 'caregiver/caregiver_shell.dart';
 
 /// After sign-in: elders get the simple elder home, caregivers get their family groups.
 class HomeGate extends ConsumerWidget {
@@ -29,7 +30,9 @@ class HomeGate extends ConsumerWidget {
               ),
             ),
           ),
-          data: (me) => me.isElder ? ElderHomeScreen(me: me) : const GroupsScreen(),
+          data: (me) => me.isElder
+              ? ElderHomeScreen(me: me)
+              : (me.accountType == 'SYSTEM_ADMIN' ? const AdminScreen() : CaregiverHome(me: me)),
         );
   }
 }

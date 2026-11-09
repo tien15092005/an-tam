@@ -75,12 +75,41 @@ class LocalDoseLogs extends Table {
   Set<Column> get primaryKey => {medicationId, scheduledAt};
 }
 
-@DriftDatabase(tables: [CachedMedications, CachedImages, SyncMeta, PendingEvents, LocalDoseLogs])
+/// Exercise reminders as last downloaded (Phase 7).
+class CachedExercises extends Table {
+  IntColumn get id => integer()();
+  TextColumn get title => text()();
+
+  /// "06:30"
+  TextColumn get time => text()();
+  IntColumn get daysMask => integer()();
+  IntColumn get durationMin => integer().nullable()();
+  TextColumn get note => text().nullable()();
+  DateTimeColumn get startDate => dateTime()();
+  DateTimeColumn get endDate => dateTime().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// "TÔI ĐI TẬP ĐÂY" per exercise and day, shown at once even offline.
+class LocalExerciseLogs extends Table {
+  IntColumn get exerciseId => integer()();
+  DateTimeColumn get day => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {exerciseId, day};
+}
+
+@DriftDatabase(
+  tables: [CachedMedications, CachedImages, SyncMeta, PendingEvents, LocalDoseLogs, CachedExercises, LocalExerciseLogs],
+)
 class ScheduleDb extends _$ScheduleDb {
   ScheduleDb([QueryExecutor? executor]) : super(executor ?? driftDatabase(name: 'antam_schedule'));
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -88,6 +117,10 @@ class ScheduleDb extends _$ScheduleDb {
           if (from < 2) {
             await m.createTable(pendingEvents);
             await m.createTable(localDoseLogs);
+          }
+          if (from < 3) {
+            await m.createTable(cachedExercises);
+            await m.createTable(localExerciseLogs);
           }
         },
       );
@@ -97,6 +130,9 @@ class ScheduleDb extends _$ScheduleDb {
       .insert(LocalDoseLogsCompanion.insert(medicationId: medicationId, scheduledAt: at, status: status),
           mode: InsertMode.insertOrIgnore);
 
+  Future<void> recordExercise(int exerciseId, DateTime day) => into(localExerciseLogs)
+      .insert(LocalExerciseLogsCompanion.insert(exerciseId: exerciseId, day: day), mode: InsertMode.insertOrIgnore);
+
   Future<String?> meta(String key) async =>
       (await (select(syncMeta)..where((m) => m.key.equals(key))).getSingleOrNull())?.value;
 
@@ -104,13 +140,16 @@ class ScheduleDb extends _$ScheduleDb {
       into(syncMeta).insertOnConflictUpdate(SyncMetaCompanion.insert(key: key, value: value));
 
   /// Replaces the whole cache in one transaction, so a crash mid-sync never leaves half a schedule.
-  Future<void> replaceAll(List<CachedMedicationsCompanion> meds, List<CachedImagesCompanion> images) =>
+  Future<void> replaceAll(List<CachedMedicationsCompanion> meds, List<CachedImagesCompanion> images,
+          [List<CachedExercisesCompanion> exercises = const []]) =>
       transaction(() async {
         await delete(cachedMedications).go();
         await delete(cachedImages).go();
+        await delete(cachedExercises).go();
         await batch((b) {
           b.insertAll(cachedMedications, meds);
           b.insertAll(cachedImages, images);
+          b.insertAll(cachedExercises, exercises);
         });
       });
 }
