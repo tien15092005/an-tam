@@ -54,6 +54,8 @@ class _ElderHomeScreenState extends ConsumerState<ElderHomeScreen> {
     super.initState();
     // Fresh schedule whenever the home screen appears (e.g. right after pairing), not only on resume.
     Future.microtask(() => ref.read(elderScheduleProvider.notifier).refresh());
+    // Fallback when no push arrives: re-sync every few hours even if the app is never opened (plan §9).
+    AlarmChannel.setBackgroundSync(true);
     _lifecycle = AppLifecycleListener(onResume: () {
       ref.read(elderScheduleProvider.notifier).refresh();
       ref.invalidate(readinessProvider);

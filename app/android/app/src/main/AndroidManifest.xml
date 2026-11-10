@@ -54,6 +54,8 @@
 
         <receiver android:name=".alarm.AlarmReceiver" android:exported="false"/>
 
+        <!-- Every few hours on elder phones: download the schedule and re-arm alarms (plan §9 fallback). -->
+        <receiver android:name=".sync.SyncReceiver" android:exported="false" />
         <receiver android:name=".alarm.RearmReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>

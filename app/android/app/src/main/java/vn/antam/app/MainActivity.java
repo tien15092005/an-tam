@@ -28,7 +28,7 @@ import vn.antam.app.alarm.AlarmService;
 public class MainActivity extends FlutterActivity {
 
     public static final String EXTRA_OPEN_ALARM = "open_alarm";
-    private static final String CHANNEL = "vn.antam/alarm";
+    private static final String CHANNEL = vn.antam.app.alarm.AlarmChannelCore.CHANNEL;
     private static final int REQUEST_NOTIFICATIONS = 1;
 
     private MethodChannel channel;
@@ -42,6 +42,19 @@ public class MainActivity extends FlutterActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         showOverLockScreenIfRinging(getIntent());
+        debugRunSync(getIntent());
+    }
+
+    /** Debug builds only: `adb shell am start -n vn.antam.app/.MainActivity --ez debugRunSync true` runs the
+     *  background sync's headless engine once, to test it without waiting hours. */
+    private void debugRunSync(Intent intent) {
+        boolean debuggable = (getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0;
+        if (!debuggable || intent == null) return;
+        if (intent.getBooleanExtra("debugRunSync", false)) {
+            vn.antam.app.sync.BackgroundSync.runNowForDebug(getApplicationContext());
+        }
+        int minutes = intent.getIntExtra("debugSyncIntervalMin", 0);
+        if (minutes > 0) vn.antam.app.sync.BackgroundSync.setIntervalForDebug(getApplicationContext(), minutes * 60_000L);
     }
 
     @Override
@@ -49,6 +62,7 @@ public class MainActivity extends FlutterActivity {
         super.onNewIntent(intent);
         setIntent(intent);
         showOverLockScreenIfRinging(intent);
+        debugRunSync(intent);
         if (channel != null && AlarmScheduler.ringingId(this) >= 0) {
             channel.invokeMethod("alarmRinging", AlarmScheduler.ringingId(this));
         }
@@ -83,52 +97,11 @@ public class MainActivity extends FlutterActivity {
     public void configureFlutterEngine(@NonNull FlutterEngine flutterEngine) {
         super.configureFlutterEngine(flutterEngine);
         channel = new MethodChannel(flutterEngine.getDartExecutor().getBinaryMessenger(), CHANNEL);
+        live = this;
         channel.setMethodCallHandler((call, result) -> {
+            // Scheduling and background sync live in AlarmChannelCore (shared with the headless sync engine).
+            if (vn.antam.app.alarm.AlarmChannelCore.handle(this, call, result)) return;
             switch (call.method) {
-                case "schedule": {
-                    Integer id = call.argument("id");
-                    Number at = call.argument("triggerAtMillis");
-                    String title = call.argument("title");
-                    String speech = call.argument("speech");
-                    if (id == null || at == null || title == null || speech == null) {
-                        result.error("bad_args", "id, triggerAtMillis, title, speech are required", null);
-                        return;
-                    }
-                    AlarmScheduler.schedule(this, id, at.longValue(), title, speech);
-                    result.success(null);
-                    break;
-                }
-                case "replaceSchedule": {
-                    java.util.List<Map<String, Object>> raw = call.argument("alarms");
-                    java.util.List<vn.antam.app.alarm.AlarmStore.Alarm> alarms = new java.util.ArrayList<>();
-                    if (raw != null) {
-                        for (Map<String, Object> a : raw) {
-                            alarms.add(new vn.antam.app.alarm.AlarmStore.Alarm(((Number) a.get("id")).intValue(),
-                                    ((Number) a.get("triggerAtMillis")).longValue(), (String) a.get("title"), (String) a.get("speech")));
-                        }
-                    }
-                    AlarmScheduler.replaceSchedule(this, alarms);
-                    result.success(alarms.size());
-                    break;
-                }
-                case "scheduled": {
-                    java.util.List<Map<String, Object>> out = new java.util.ArrayList<>();
-                    for (vn.antam.app.alarm.AlarmStore.Alarm a : AlarmScheduler.all(this)) {
-                        Map<String, Object> m = new HashMap<>();
-                        m.put("id", a.id);
-                        m.put("triggerAtMillis", a.triggerAtMillis);
-                        m.put("title", a.title);
-                        out.add(m);
-                    }
-                    result.success(out);
-                    break;
-                }
-                case "cancel": {
-                    Integer id = call.argument("id");
-                    if (id != null) AlarmScheduler.cancel(this, id);
-                    result.success(null);
-                    break;
-                }
                 case "stopRinging":
                     AlarmScheduler.clearRinging(this);
                     AlarmService.stop(this);
@@ -137,9 +110,6 @@ public class MainActivity extends FlutterActivity {
                     break;
                 case "ringingId":
                     result.success(AlarmScheduler.ringingId(this));
-                    break;
-                case "ringingIds":
-                    result.success(AlarmScheduler.ringingIds(this));
                     break;
                 case "speak": {
                     String text = call.argument("text");
@@ -226,8 +196,20 @@ public class MainActivity extends FlutterActivity {
         voice.speak(text, TextToSpeech.QUEUE_FLUSH, params, "once-" + System.currentTimeMillis());
     }
 
+    /** The activity whose engine is running, if any: a background sync then runs there (one engine owns the database). */
+    private static volatile MainActivity live;
+
+    /** @return true when the open app took the sync request. */
+    public static boolean requestSyncInOpenApp() {
+        MainActivity a = live;
+        if (a == null || a.channel == null || a.isFinishing() || a.isDestroyed()) return false;
+        a.runOnUiThread(() -> a.channel.invokeMethod("syncNow", null));
+        return true;
+    }
+
     @Override
     protected void onDestroy() {
+        if (live == this) live = null;
         if (voice != null) voice.shutdown();
         super.onDestroy();
     }

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../../core/push/push.dart';
+import '../../reminder/alarm_channel.dart';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -140,6 +141,7 @@ class SessionNotifier extends AsyncNotifier<Session?> {
 
   Future<void> signOutLocally() async {
     // Signed out (or replaced by a newly paired phone): this phone must stop reminding.
+    await AlarmChannel.setBackgroundSync(false);
     try {
       await ref.read(elderScheduleProvider.notifier).clear();
     } catch (_) {

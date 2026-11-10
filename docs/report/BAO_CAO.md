@@ -177,7 +177,7 @@ stateDiagram-v2
 
 **Giao diện:** trang chính chữ lớn (`docs/screenshots/phase5-elder-home.png`), màn hình báo nhiều thuốc (`phase5-alarm-multi.png`), câu hỏi vấn đề (`phase5-question.png`), báo tập (`phase7-exercise-alarm.png`), kiểm tra máy (`phase5-readiness.png`).
 
-**Giải pháp kỹ thuật:** `app/android/.../alarm/` (AlarmScheduler, AlarmService, RearmReceiver), `app/lib/reminder/` (schedule_db, schedule_sync, outbox, elder_schedule), `app/lib/features/elder/`. Id báo thức mã hóa phút nên màn hình báo tìm được thuốc cần uống ngay cả khi offline.
+**Giải pháp kỹ thuật:** `app/android/.../alarm/` (AlarmScheduler, AlarmService, RearmReceiver), `app/lib/reminder/` (schedule_db, schedule_sync, outbox, elder_schedule), `app/lib/features/elder/`. Id báo thức mã hóa phút nên màn hình báo tìm được thuốc cần uống ngay cả khi offline. Đồng bộ nền mỗi 3 giờ (Flutter engine không giao diện, `app/android/.../sync/`) giúp máy nhận thuốc mới dù không mở app và không có thông báo đẩy.
 
 **Điểm khó:** Android hủy báo thức khi bị "force stop"; Samsung tối ưu pin; giọng tiếng Việt có thể chưa cài (không đọc bằng giọng tiếng Anh).
 

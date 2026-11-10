@@ -12,5 +12,6 @@ public class RearmReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         AlarmScheduler.rearmAll(context);
+        vn.antam.app.sync.BackgroundSync.schedule(context); // inexact repeating alarms are lost on reboot too
     }
 }

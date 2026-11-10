@@ -111,6 +111,15 @@ class AlarmChannel {
       (await _channel.invokeMethod<List<Object?>>('ringingIds') ?? const []).cast<int>();
 
   /// Says [text] once in Vietnamese on the alarm stream; silent if the phone has no Vietnamese voice.
+  /// Elder phones only: re-sync the schedule every few hours in the background (no-op elsewhere).
+  static Future<void> setBackgroundSync(bool enabled) async {
+    try {
+      await _channel.invokeMethod<void>('backgroundSync', {'enabled': enabled});
+    } on MissingPluginException {
+      // Tests and non-Android platforms.
+    }
+  }
+
   static Future<void> speak(String text) => _channel.invokeMethod('speak', {'text': text});
 
   static Future<void> stopSpeaking() => _channel.invokeMethod('stopSpeaking');
@@ -127,9 +136,11 @@ class AlarmChannel {
   static Future<void> openSettings(String which) => _channel.invokeMethod('openSettings', {'which': which});
 
   /// Called when an alarm starts ringing while the app is already open.
-  static void onRinging(void Function(int id) handler) {
+  static void onRinging(void Function(int id) handler, {void Function()? onSyncRequested}) {
     _channel.setMethodCallHandler((call) async {
       if (call.method == 'alarmRinging' && call.arguments is int) handler(call.arguments as int);
+      // The periodic background sync fired while the app is open: refresh here instead of a second engine.
+      if (call.method == 'syncNow') onSyncRequested?.call();
     });
   }
 }

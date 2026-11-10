@@ -103,7 +103,7 @@ Hành vi đã chốt trong bản thử:
 - **Trạng thái liều và triển khai lịch** viết 2 lần (Java ở backend, Dart ở app) và cùng chạy bộ test vector `shared/test-vectors/`. Quá 60 phút chưa xác nhận là "lỡ"; thuốc thêm sau giờ uống trong ngày thì liều đó không tính và không báo.
 - **Lưu offline bằng drift (SQLite)** đúng mục 3 của kế hoạch: bảng thuốc, ảnh, thông tin đồng bộ. App cũng lưu thông tin tài khoản lần cuối để khi mất mạng người già vẫn vào thẳng trang chủ.
 - **Báo thức:** đặt cho 7 ngày tới, mỗi phút có thuốc một báo thức; các thuốc cùng giờ được đọc chung. Id báo thức = 100.000.000 + số phút tính từ 1970, nên màn hình báo biết ngay thuốc nào đến giờ kể cả khi mất mạng hoặc vừa khởi động lại máy. Hàm native `replaceSchedule` hủy những báo thức không còn trong lịch (thuốc đã xóa); báo thức hoãn 10 phút dùng dải id riêng nên không bị hủy nhầm. Mỗi lần tắt báo thức app lại đặt tiếp, nên cửa sổ 7 ngày luôn được kéo dài.
-- **Giới hạn đã biết:** nếu người già không mở app và không có báo thức nào kêu trong 7 ngày, báo thức sẽ hết. Sẽ xử lý bằng FCM hoặc WorkManager ở Giai đoạn 6. Điện thoại được coi là đang ở múi giờ của người già.
+- **Giới hạn đã biết (đã xử lý 10/11/2026):** nếu người già không mở app và không có báo thức nào kêu trong 7 ngày, báo thức sẽ hết. Nay có đồng bộ nền mỗi 3 giờ (xem mục Đồng bộ nền dự phòng). Điện thoại được coi là đang ở múi giờ của người già.
 - **Đăng xuất (hoặc server báo phiên đã hết, ví dụ đã ghép máy mới):** máy xóa lịch, ảnh và mọi báo thức, để máy cũ không kêu song song với máy mới.
 - **Build Android (sửa lại ở Giai đoạn 5):** lỗi "Unable to delete directory" có 2 nguyên nhân riêng. (1) Tính năng theo dõi file của Gradle giữ khóa thư mục giữa các lần build trên Windows: đã tắt bằng `org.gradle.vfs.watch=false`. (2) Plugin như `image_picker` sinh đường dẫn dài hơn 260 ký tự trong `.transforms`; Gradle tạo được nhưng không xóa được khi Windows chưa bật Long Paths. Cách sửa gốc là bật `LongPathsEnabled` (người dùng máy tự làm, cần quyền admin; xem SETUP). Trước mắt dùng `app/tool/build_apk.ps1` để xóa các thư mục đó bằng tiền tố `\\?\` trước khi build. Kết luận ở Giai đoạn 4 rằng chỉ cần build vào đường thật là chưa đúng; thay đổi đó đã được bỏ.
 
@@ -169,6 +169,13 @@ Hành vi đã chốt trong bản thử:
 - **Sao lưu:** `scripts/backup.ps1` (pg_dump và thư mục ảnh, giữ 14 bản, thư mục `backups/` không lên Git). **Dữ liệu demo giả:** `scripts/seed_demo.py`.
 - **Bản phát hành:** ký bằng keystore của nhóm trưởng qua `android/key.properties` (không lên Git); thiếu thì ký bằng khóa debug và không được phát tán. Bản phát hành chỉ chấp nhận địa chỉ `https://` (Android cũng chặn HTTP ở bản này).
 - **CI:** thêm `flutter test --coverage` và lưu `lcov.info`. Chưa đo độ phủ backend vì JaCoCo bản đang có chưa xác nhận hỗ trợ Java 25.
+
+## Đồng bộ nền dự phòng (10/11/2026)
+
+- **Vì sao:** khi chưa có Firebase, một thuốc mới thêm cho bố mẹ chỉ đến máy khi người già mở app hoặc có báo thức kêu. Kế hoạch (mục 9) yêu cầu "worker định kỳ là đường dự phòng".
+- **Cách làm:** trên máy người già, một báo thức không chính xác (`setInexactRepeating`, 3 giờ, hệ thống gom chung với việc khác nên tốn ít pin) gọi `SyncReceiver`. Nếu app đang mở, việc tải lịch được giao cho chính app (tránh hai engine cùng ghi SQLite, đã gặp lỗi "database is locked"). Nếu app đã đóng, một Flutter engine không giao diện chạy hàm Dart `backgroundSync` (lib/main.dart): gửi hàng đợi, tải lịch, đặt lại 7 ngày báo thức, rồi báo xong (tối đa 50 giây). Không dùng WorkManager để khỏi thêm thư viện.
+- Phần lịch của kênh `vn.antam/alarm` tách ra `AlarmChannelCore`, dùng chung cho màn hình và engine nền. Bật khi vào trang chính người già, tắt khi đăng xuất, tự đăng ký lại sau khi khởi động máy hoặc cập nhật app.
+- Bản debug có hai tham số để thử: `--ez debugRunSync true` (chạy ngay) và `--ei debugSyncIntervalMin N` (rút chu kỳ).
 
 ## Các quyết định khác
 

@@ -193,6 +193,17 @@ Bấm "Báo sau 15 giây / 1 phút / 5 phút" trong màn hình Thử nghiệm b�
 
 **Vấn đề môi trường:** máy nhóm trưởng thiếu RAM (còn khoảng 0,5–1 GB trống khi chạy Docker, máy ảo và Android Studio), máy ảo nhiều lần báo "System UI isn't responding". Nên tắt bớt ứng dụng khi demo, hoặc demo trên điện thoại thật.
 
+## Đồng bộ nền dự phòng (10/11/2026, máy ảo Pixel 8)
+
+| Kiểm tra | Kết quả |
+|---|---|
+| Báo thức đồng bộ được đăng ký khi vào trang chính người già | Đạt: `dumpsys alarm` có `SyncReceiver`, lặp 3 giờ |
+| Tự đăng ký lại sau khi khởi động máy | Đạt: sau khi máy ảo khởi động lại, báo thức có lại sau khoảng 50 giây (BOOT_COMPLETED) |
+| App đang mở | Đạt: "background sync handed to the open app", không mở engine thứ hai |
+| App đã đóng hẳn (`am kill`), thêm thuốc mới từ server | Đạt: receiver khởi động engine không giao diện, log "9 medicines, offline=false, 54 alarms armed"; kho báo thức có báo thức mới cho thuốc vừa thêm (id 129904904, 14:04) mà không ai mở app |
+
+Lỗi tìm được khi thử: lần đầu chạy engine nền lúc app đang mở báo "database is locked" → nay giao việc cho app đang mở.
+
 **Vấn đề phát hiện (Giai đoạn 1):**
 
 - Thư mục dự án nằm trong OneDrive. OneDrive giữ file trong `app/build` làm `flutter test` và build Android lỗi ngẫu nhiên. Tạm xử lý bằng cách xóa `app/build` rồi chạy lại.

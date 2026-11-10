@@ -100,7 +100,12 @@ class _AnTamAppState extends ConsumerState<AnTamApp> {
   @override
   void initState() {
     super.initState();
-    AlarmChannel.onRinging((_) => ref.read(routerProvider).go('/alarm'));
+    AlarmChannel.onRinging(
+      (_) => ref.read(routerProvider).go('/alarm'),
+      onSyncRequested: () {
+        if (ref.read(meProvider).value?.isElder ?? false) ref.read(elderScheduleProvider.notifier).refresh();
+      },
+    );
   }
 
   void _onPush(String kind, Map<String, dynamic> data, {required bool elder}) {
