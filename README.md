@@ -1,11 +1,11 @@
 # An Tâm – Nhắc bố mẹ uống thuốc
 
-Ứng dụng Android giúp người già uống thuốc và tập thể dục đúng giờ, và giúp các con cùng theo dõi trong một nhóm gia đình.
+Ứng dụng giúp người già uống thuốc và tập thể dục đúng giờ, và giúp các con cùng theo dõi trong một nhóm gia đình.
 
 - **Bố mẹ:** đến giờ, điện thoại đổ chuông kể cả khi mất mạng hoặc vừa khởi động lại. Màn hình hiện ảnh viên thuốc và đọc tên, liều, mô tả bằng giọng tiếng Việt cho đến khi được xác nhận. Sau đó máy hỏi "có vấn đề gì không".
 - **Các con:** xem bố mẹ đã uống chưa, nhận cảnh báo, đánh dấu giúp, xem lịch tuần và tháng, chat trong nhóm. Thêm thuốc bằng tay hoặc **Quét OCR** toa thuốc, vỏ hộp, hóa đơn.
 
-> Đồ án môn Mobile App. App là công cụ nhắc lịch, không tư vấn y khoa.
+> Đồ án môn Mobile App. App là công cụ nhắc lịch, không tư vấn y khoa. Máy của bố mẹ cần là điện thoại Android; các con dùng Android hoặc iPhone (iPhone chưa thử, xem docs/IPHONE.md).
 
 ## Thành phần
 
@@ -96,6 +96,7 @@ Backend dùng Testcontainers (cần Docker đang chạy). Kết quả từng gia
 - [docs/DECISIONS.md](docs/DECISIONS.md): các quyết định kỹ thuật và lý do.
 - [docs/SETUP.md](docs/SETUP.md): cài đặt, đường hầm, Firebase, admin, sao lưu, APK phát hành.
 - [docs/demo-script.md](docs/demo-script.md): kịch bản demo nghiệm thu.
+- [docs/IPHONE.md](docs/IPHONE.md): iPhone làm được và không làm được (người con dùng được, máy người già cần Android).
 - [docs/report/BAO_CAO.md](docs/report/BAO_CAO.md): bản nháp báo cáo môn học.
 
 ## Bảo mật

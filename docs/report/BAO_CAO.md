@@ -145,9 +145,9 @@ Migration: `backend/src/main/resources/db/migration/V1` → `V7`.
 
 **Điểm khó đã giải quyết:** báo thức tin cậy trên Android (Doze, khởi động lại, foreground service); đồng bộ offline không trùng; OCR tiếng Việt (lỗi đọc "50Omg" thành chữ O đã được xử lý); chat thời gian thực có kiểm tra quyền mỗi lần gửi; khóa tài khoản có hiệu lực ngay.
 
-**Hướng phát triển:** thử LLM/mô hình cho OCR khi nhóm đồng ý (bộ đánh giá đã sẵn); nghe giọng nói tự động giữa các lượt đọc; iPhone; nhiều múi giờ; thống kê tuân thủ theo tháng.
+**Hướng phát triển:** thử LLM/mô hình cho OCR khi nhóm đồng ý (bộ đánh giá đã sẵn); nghe giọng nói tự động giữa các lượt đọc; build và thử bản iPhone cho người con (máy người già cần Android, xem `docs/IPHONE.md`); nhiều múi giờ; thống kê tuân thủ theo tháng.
 
-**Kết quả kiểm thử:** backend 89 test, app 84 test, AI service 26 test, tất cả đạt; chi tiết theo từng giai đoạn trong `docs/TEST_REPORT.md`. Chưa thử: Samsung thật, người dùng từ 55 tuổi ngoài nhóm, thông báo đẩy thật (cần Firebase).
+**Kết quả kiểm thử:** backend 89 test, app 86 test, AI service 26 test, tất cả đạt; chi tiết theo từng giai đoạn trong `docs/TEST_REPORT.md`. Chưa thử: Samsung thật, người dùng từ 55 tuổi ngoài nhóm, thông báo đẩy thật (cần Firebase).
 
 ---
 

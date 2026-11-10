@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 /// Phone readiness for reliable alarms (plan §9, "Kiểm tra độ sẵn sàng").
@@ -100,15 +101,28 @@ class AlarmChannel {
   /// Silences the ringing alarm (after the elder confirms or snoozes).
   static Future<void> stopRinging() => _channel.invokeMethod('stopRinging');
 
-  /// Id of the alarm ringing right now, or null.
+  /// True where the native alarm engine exists (Android). On iPhone the caregiver app works but there is
+  /// no alarm engine (docs/IPHONE.md), so status questions answer "nothing ringing" instead of throwing.
+  static bool get supported => defaultTargetPlatform == TargetPlatform.android;
+
+  /// Id of the alarm ringing right now, or null. Asked on every navigation, so it must never throw.
   static Future<int?> ringingId() async {
-    final id = await _channel.invokeMethod<int>('ringingId');
-    return (id == null || id < 0) ? null : id;
+    try {
+      final id = await _channel.invokeMethod<int>('ringingId');
+      return (id == null || id < 0) ? null : id;
+    } on MissingPluginException {
+      return null;
+    }
   }
 
   /// Every alarm ringing now (a new one joins an unanswered one), oldest first.
-  static Future<List<int>> ringingIds() async =>
-      (await _channel.invokeMethod<List<Object?>>('ringingIds') ?? const []).cast<int>();
+  static Future<List<int>> ringingIds() async {
+    try {
+      return (await _channel.invokeMethod<List<Object?>>('ringingIds') ?? const []).cast<int>();
+    } on MissingPluginException {
+      return const [];
+    }
+  }
 
   /// Says [text] once in Vietnamese on the alarm stream; silent if the phone has no Vietnamese voice.
   /// Elder phones only: re-sync the schedule every few hours in the background (no-op elsewhere).
@@ -137,6 +151,7 @@ class AlarmChannel {
 
   /// Called when an alarm starts ringing while the app is already open.
   static void onRinging(void Function(int id) handler, {void Function()? onSyncRequested}) {
+    if (!supported) return;
     _channel.setMethodCallHandler((call) async {
       if (call.method == 'alarmRinging' && call.arguments is int) handler(call.arguments as int);
       // The periodic background sync fired while the app is open: refresh here instead of a second engine.

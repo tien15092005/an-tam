@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/network/api_client.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/tokens.dart';
+import '../../reminder/alarm_channel.dart';
 import 'session.dart';
 
 /// The elder types the 6-digit code their child created. Large digits, one action.
@@ -46,6 +47,21 @@ class _ElderPairScreenState extends ConsumerState<ElderPairScreen> {
       data: AppTheme.build(UiDensity.elder),
       child: Builder(builder: (context) {
         final text = Theme.of(context).textTheme;
+        if (!AlarmChannel.supported) {
+          // iPhone cannot keep ringing and reading aloud until the elder answers (docs/IPHONE.md).
+          return Scaffold(
+            appBar: AppBar(title: const Text('Máy của bố mẹ')),
+            body: ListView(padding: const EdgeInsets.all(AppSpacing.lg), children: [
+              Text('Máy của bố mẹ cần là điện thoại Android.', style: text.titleLarge),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                'Trên iPhone, ứng dụng không thể đổ chuông và đọc tên thuốc liên tục khi đã đóng. '
+                'Các con vẫn dùng iPhone bình thường để theo dõi, chat và đặt lịch.',
+                style: text.bodyLarge,
+              ),
+            ]),
+          );
+        }
         return Scaffold(
           appBar: AppBar(title: const Text('Nhập mã của con')),
           body: ListView(

@@ -177,6 +177,13 @@ Hành vi đã chốt trong bản thử:
 - Phần lịch của kênh `vn.antam/alarm` tách ra `AlarmChannelCore`, dùng chung cho màn hình và engine nền. Bật khi vào trang chính người già, tắt khi đăng xuất, tự đăng ký lại sau khi khởi động máy hoặc cập nhật app.
 - Bản debug có hai tham số để thử: `--ez debugRunSync true` (chạy ngay) và `--ei debugSyncIntervalMin N` (rút chu kỳ).
 
+## Giai đoạn 13: iPhone (10/11/2026)
+
+- Không có máy Mac nên chưa build được iOS. Đánh giá chi tiết trong `docs/IPHONE.md`.
+- **Người con dùng iPhone được; máy người già phải là Android.** iOS không cho chuông kêu và đọc liên tục khi app đóng (âm thanh thông báo tối đa khoảng 30 giây, không có full-screen trên màn hình khóa, không chạy nền tùy ý). Màn hình ghép máy người già trên iPhone nói rõ điều này thay vì cho một bản không đáng tin.
+- Router hỏi "có báo thức đang kêu không" mỗi lần chuyển màn hình; trên iOS lệnh này từng ném lỗi và sẽ làm app người con đứng yên. Nay các lệnh hỏi trạng thái trả "không có gì" khi không có phần báo thức gốc (có test).
+- `Info.plist`: lời giải thích quyền Camera, Thư viện ảnh; mức iOS tối thiểu 15.5 theo ML Kit.
+
 ## Các quyết định khác
 
 - **Nền tảng:** Android là mục tiêu nghiệm thu. iPhone là phần mở rộng tùy chọn.

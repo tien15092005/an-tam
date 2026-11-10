@@ -204,6 +204,13 @@ Bấm "Báo sau 15 giây / 1 phút / 5 phút" trong màn hình Thử nghiệm b�
 
 Lỗi tìm được khi thử: lần đầu chạy engine nền lúc app đang mở báo "database is locked" → nay giao việc cho app đang mở.
 
+## Giai đoạn 13: iPhone (10/11/2026, tùy chọn)
+
+| Tiêu chí DoD | Kết quả | Bằng chứng |
+|---|---|---|
+| Ghi đúng những gì iPhone làm được và không làm được | Đạt (bằng phân tích, chưa chạy thật) | `docs/IPHONE.md`: người con và admin dùng được; người già không hỗ trợ, có lý do theo từng yêu cầu của mục 9 |
+| Chạy trên iPhone | **Chưa** | Không có máy Mac. Đã sửa trước một lỗi chắc chắn gặp (router gọi kênh báo thức không có trên iOS), có test `alarm_channel_test.dart` |
+
 **Vấn đề phát hiện (Giai đoạn 1):**
 
 - Thư mục dự án nằm trong OneDrive. OneDrive giữ file trong `app/build` làm `flutter test` và build Android lỗi ngẫu nhiên. Tạm xử lý bằng cách xóa `app/build` rồi chạy lại.

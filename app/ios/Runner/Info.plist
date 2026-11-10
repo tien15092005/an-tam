@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>App</string>
+	<string>An Tâm</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -66,5 +66,9 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Chụp ảnh viên thuốc, vỏ hộp và Quét OCR toa thuốc. Chữ được đọc ngay trên máy.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Chọn ảnh thuốc hoặc ảnh toa thuốc có sẵn để Quét OCR.</string>
 </dict>
 </plist>
