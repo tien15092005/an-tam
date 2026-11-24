@@ -21,7 +21,7 @@ class RemoteMedPhoto extends ConsumerWidget {
       child: bytes.when(
         data: (b) => Image.memory(b, fit: BoxFit.cover, width: size, height: size),
         loading: () => const Center(child: SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2))),
-        error: (_, _) => const Icon(Icons.broken_image_outlined, color: AppColors.muted),
+        error: (_, _) => Icon(Icons.broken_image_outlined, color: AppColors.muted),
       ),
     );
   }
@@ -38,7 +38,7 @@ class LocalMedPhoto extends StatelessWidget {
   Widget build(BuildContext context) => _Frame(
         size: size,
         child: Image.file(File(path), fit: BoxFit.cover, width: size, height: size,
-            errorBuilder: (_, _, _) => const Icon(Icons.medication, color: AppColors.primary)),
+            errorBuilder: (_, _, _) => Icon(Icons.medication, color: AppColors.primary)),
       );
 }
 

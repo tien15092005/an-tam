@@ -54,14 +54,12 @@ public class CareService {
     private final GroupAccess access;
     private final UserRepository users;
     private final Notifier notifier;
-    private final vn.antam.chat.ChatService chat;
     private final TodayService today;
     private final Clock clock;
 
     public CareService(DoseLogRepository doseLogs, AlertRepository alerts, MedicationRepository medications,
                        ElderProfileRepository elders, GroupMemberRepository members, GroupAccess access,
-                       UserRepository users, Notifier notifier, TodayService today, vn.antam.chat.ChatService chat,
-                       Clock clock) {
+                       UserRepository users, Notifier notifier, TodayService today, Clock clock) {
         this.doseLogs = doseLogs;
         this.alerts = alerts;
         this.medications = medications;
@@ -70,7 +68,6 @@ public class CareService {
         this.access = access;
         this.users = users;
         this.notifier = notifier;
-        this.chat = chat;
         this.today = today;
         this.clock = clock;
     }
@@ -121,6 +118,8 @@ public class CareService {
             logs.add(log);
         }
 
+        // Answered after the caregivers were told "chưa xác nhận": settle that alert and say it came late.
+        boolean late = today.resolveNotConfirmedIfAnswered(elderUserId, r.scheduledDate(), time, elderUserId, now);
         Long alertId = null;
         if (issue != null) {
             Alert a = new Alert(elder.getGroupId(), elderUserId, issue, r.clientEventId(), now);
@@ -132,11 +131,9 @@ public class CareService {
             // One notification per report and person: an alert replaces the plain report.
             notifier.toCaregivers(elder.getGroupId(), Notifier.Kind.DOSE_REPORT, logs.getFirst().getId(),
                     "report:" + r.clientEventId(), CareTexts.reportTitle(elder.getCallName(), r.status()),
-                    r.scheduledTime() + " · " + String.join(", ", names), r.status() != DoseLog.Status.TAKEN, null);
-            chat.system(elder.getGroupId(), CareTexts.reportTitle(elder.getCallName(), r.status()) + " · " + r.scheduledTime()
-                    + " · " + String.join(", ", names), null);
+                    r.scheduledTime() + " · " + String.join(", ", names) + (late ? " · trả lời muộn" : ""),
+                    r.status() != DoseLog.Status.TAKEN, null);
         }
-        today.resolveNotConfirmedIfAnswered(elderUserId, r.scheduledDate(), time, elderUserId, now);
         return new DoseReportResult(logs.stream().map(DoseLog::getId).toList(), alertId, false);
     }
 
@@ -199,9 +196,6 @@ public class CareService {
     private void notifyAlert(Alert a, ElderProfile elder) {
         notifier.toCaregivers(a.getGroupId(), Notifier.Kind.ALERT, a.getId(), "alert:" + a.getId(),
                 CareTexts.alertTitle(elder.getCallName(), a.getKind()), CareTexts.alertBody(a), true, null);
-        chat.system(a.getGroupId(), CareTexts.alertTitle(elder.getCallName(), a.getKind())
-                + (a.getMedicationNames() == null ? "" : " " + a.getMedicationNames())
-                + (a.getScheduledTime() == null ? "" : " (liều " + CareTexts.hhmm(a.getScheduledTime()) + ")"), a.getId());
     }
 
     private static Alert.Kind issueOf(CheckResult result, Alert.Kind issue) {

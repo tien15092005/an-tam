@@ -27,8 +27,12 @@ import vn.antam.app.MainActivity;
 
 /**
  * Rings an alarm: shows a full-screen alarm notification, vibrates, and reads the reminder aloud
- * through the ALARM audio stream again and again until the user confirms or snoozes.
- * There is deliberately no limit on the number of repetitions (product decision, see SKILL_AN_TAM.md §9).
+ * through the ALARM audio stream until the user confirms or snoozes.
+ * <p>
+ * A ring lasts at most {@link #RING_LIMIT_MS}. Unanswered, the phone goes quiet and rings again
+ * {@link #RETRY_AFTER_MS} after the ring started, up to {@link #MAX_ATTEMPTS} rings in all (snoozes count too).
+ * After the last one it stays quiet; caregivers are told by the server 30 minutes after the dose time
+ * (SKILL_AN_TAM.md §9). A quiet notification tells the elder the dose still waits for an answer.
  */
 public class AlarmService extends Service {
 
@@ -39,6 +43,11 @@ public class AlarmService extends Service {
     static final String ACTION_STOP = "vn.antam.app.alarm.STOP";
     static final String ACTION_HOLD = "vn.antam.app.alarm.HOLD";
     static final long PAUSE_BETWEEN_READS_MS = 20_000;
+    static final long RING_LIMIT_MS = 2 * 60_000;
+    static final long RETRY_AFTER_MS = 10 * 60_000;
+    static final int MAX_ATTEMPTS = 3;
+    static final String MISSED_CHANNEL_ID = "antam_missed";
+    static final int MISSED_NOTIFICATION_ID = 4712;
 
     /** True while this process is ringing. A stored "ringing" id without a live service is stale. */
     static volatile boolean running;
@@ -52,13 +61,18 @@ public class AlarmService extends Service {
     private int readCount;
     private PowerManager.WakeLock wakeLock;
     private final Runnable speakAgain = this::speak;
+    private final Runnable giveUp = this::ringTimedOut;
+    private long ringStartedAt;
+    /** The alarms of this ring (several when one joins another), to ring them again if unanswered. */
+    private final java.util.Map<Integer, AlarmStore.Alarm> ringingNow = new java.util.LinkedHashMap<>();
 
     static void start(Context context, AlarmStore.Alarm alarm) {
         Intent intent = new Intent(context, AlarmService.class)
                 .setAction(ACTION_RING)
                 .putExtra(AlarmScheduler.EXTRA_ALARM_ID, alarm.id)
                 .putExtra("title", alarm.title)
-                .putExtra("speech", alarm.speech);
+                .putExtra("speech", alarm.speech)
+                .putExtra("attempt", alarm.attempt);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             context.startForegroundService(intent);
         } else {
@@ -95,10 +109,17 @@ public class AlarmService extends Service {
         alarmId = intent.getIntExtra(AlarmScheduler.EXTRA_ALARM_ID, -1);
         String title = intent.getStringExtra("title");
         speech = intent.getStringExtra("speech");
-        startInForeground(buildNotification(title == null ? "Đến giờ uống thuốc" : title));
+        int attempt = Math.max(1, intent.getIntExtra("attempt", 1));
+        if (title == null) title = "Đến giờ uống thuốc";
+        getSystemService(NotificationManager.class).cancel(MISSED_NOTIFICATION_ID);
+        startInForeground(buildNotification(title));
         running = true;
         // A new alarm while one is still unanswered joins it: one screen, one voice, never two at once.
-        AlarmStore.addRinging(this, alarmId);
+        AlarmStore.addRinging(this, alarmId, attempt);
+        ringingNow.put(alarmId, new AlarmStore.Alarm(alarmId, 0, title, speech == null ? "" : speech, attempt));
+        ringStartedAt = System.currentTimeMillis();
+        handler.removeCallbacks(giveUp);
+        handler.postDelayed(giveUp, RING_LIMIT_MS);
         bringAlarmScreenToFront();
         acquireWakeLock();
         startVibration();
@@ -243,10 +264,64 @@ public class AlarmService extends Service {
         wakeLock.acquire(); // Released when the alarm is confirmed or snoozed.
     }
 
+    /** Nobody answered within the ring limit: go quiet, ring again later unless this was the last attempt. */
+    private void ringTimedOut() {
+        if (!running) return;
+        int lastAttempt = 0;
+        long retryAt = Math.max(ringStartedAt + RETRY_AFTER_MS, System.currentTimeMillis() + 60_000);
+        String title = null;
+        for (AlarmStore.Alarm a : ringingNow.values()) {
+            lastAttempt = Math.max(lastAttempt, a.attempt);
+            title = a.title.startsWith("Nhắc lại: ") ? a.title.substring("Nhắc lại: ".length()) : a.title;
+            if (a.attempt < MAX_ATTEMPTS) {
+                AlarmScheduler.schedule(this, AlarmScheduler.followUpId(a.id), retryAt, "Nhắc lại: " + title, a.speech,
+                        a.attempt + 1);
+            }
+        }
+        Log.i(TAG, "alarm " + alarmId + " unanswered after attempt " + lastAttempt);
+        showMissedNotification(title == null ? "uống thuốc" : title, lastAttempt < MAX_ATTEMPTS ? retryAt : -1);
+        stopRinging();
+    }
+
+    private void showMissedNotification(String title, long retryAt) {
+        NotificationManager nm = getSystemService(NotificationManager.class);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && nm.getNotificationChannel(MISSED_CHANNEL_ID) == null) {
+            nm.createNotificationChannel(new NotificationChannel(MISSED_CHANNEL_ID, "Thuốc chưa xác nhận",
+                    NotificationManager.IMPORTANCE_DEFAULT));
+        }
+        PendingIntent open = PendingIntent.getActivity(this, MISSED_NOTIFICATION_ID,
+                new Intent(this, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP),
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        String text = retryAt > 0
+                ? "Máy sẽ nhắc lại lúc " + new java.text.SimpleDateFormat("HH:mm", Locale.getDefault()).format(new java.util.Date(retryAt))
+                + ". Uống rồi thì mở app bấm Đã uống."
+                : "Mở app để trả lời. Các con sẽ được báo nếu chưa có trả lời.";
+        Notification.Builder b = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                ? new Notification.Builder(this, MISSED_CHANNEL_ID)
+                : new Notification.Builder(this);
+        b.setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+                .setContentTitle("Chưa xác nhận: " + title)
+                .setContentText(text)
+                .setStyle(new Notification.BigTextStyle().bigText(text))
+                .setCategory(Notification.CATEGORY_REMINDER)
+                .setVisibility(Notification.VISIBILITY_PUBLIC)
+                .setAutoCancel(true)
+                .setContentIntent(open);
+        nm.notify(MISSED_NOTIFICATION_ID, b.build());
+    }
+
+    /** Cancels the automatic re-rings of the given alarm (the dose was answered elsewhere). */
+    static void cancelFollowUp(Context context, int id) {
+        AlarmScheduler.cancel(context, AlarmScheduler.followUpId(id));
+        context.getSystemService(NotificationManager.class).cancel(MISSED_NOTIFICATION_ID);
+    }
+
     private void stopRinging() {
         Log.i(TAG, "stop alarm " + alarmId + " after " + readCount + " reads");
         alarmId = -1;
         running = false;
+        ringingNow.clear();
+        handler.removeCallbacks(giveUp);
         handler.removeCallbacks(speakAgain);
         if (tts != null) tts.stop();
         Vibrator v = getSystemService(Vibrator.class);
@@ -260,6 +335,7 @@ public class AlarmService extends Service {
     @Override
     public void onDestroy() {
         running = false;
+        handler.removeCallbacks(giveUp);
         handler.removeCallbacks(speakAgain);
         if (tts != null) tts.shutdown();
         if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();

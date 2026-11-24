@@ -26,7 +26,7 @@ public class GroupAccess {
                 .orElseThrow(() -> ApiException.notFound("nhóm"));
     }
 
-    /** Caregivers only (owner or member); elders cannot see e.g. other members' contact details or chat. */
+    /** Caregivers only (owner or member); elders cannot see e.g. other members' contact details. */
     public GroupMember requireCaregiver(Long groupId, Long userId) {
         GroupMember m = requireMember(groupId, userId);
         if (m.getRole() == GroupRole.ELDER) throw ApiException.forbidden("Chức năng này dành cho người con.");

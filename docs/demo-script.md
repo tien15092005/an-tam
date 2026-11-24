@@ -19,15 +19,15 @@ Theo mục 13 của kế hoạch. Cần 3 máy: **A** trưởng nhóm, **B** th�
 | 3 | B | Đăng ký, Nhập mã mời | Vào nhóm, là Thành viên |
 | 4 | A | Thêm bố / mẹ "Bà Lan", tạo mã ghép máy | Mã 6 số, hết hạn 15 phút |
 | 5 | C | Tôi là bố / mẹ, nhập mã | Trang chính chữ lớn |
-| 6 | A, B | Tab Nhóm: chat bàn lịch | Tin hiện ngay ở máy kia |
+| 6 | A, B | Cài đặt: xem danh sách bố mẹ và các con | Cả hai máy thấy đủ thành viên |
 | 7 | A | Lịch → Thêm thuốc → **Quét OCR** vỏ hộp, rồi hóa đơn | Màn hình duyệt, ô vàng chỗ giấy không ghi; tự điền giờ; tích "Dùng ảnh này cho người già" |
-| 8 | A | Chụp ảnh viên thuốc, thêm mô tả, đặt giờ cách 3 phút | Thuốc trong danh sách; tin hệ thống trong chat |
+| 8 | A | Chụp ảnh viên thuốc, thêm mô tả, đặt giờ cách 3 phút | Thuốc trong danh sách |
 | 9 | B | Thử sửa thuốc | Không có nút sửa (API cũng từ chối) |
 | 10 | C | Bật chế độ máy bay, vuốt tắt app | |
 | 11 | C | Đến giờ | Đổ chuông, hiện ảnh, đọc tên và mô tả liên tục, kể cả khi màn hình khóa |
 | 12 | C | ĐÃ UỐNG RỒI → "Mất thuốc" | Báo dừng; không có thông báo lỗi dù mất mạng |
 | 13 | C | Tắt chế độ máy bay, mở app | Báo cáo tự gửi |
-| 14 | A, B | | Cảnh báo đỏ ở tab Hôm nay; tin "Bà Lan báo mất thuốc ..." trong chat; thông báo đẩy nếu đã cài Firebase |
+| 14 | A, B | | Cảnh báo đỏ ở tab Hôm nay; thông báo đẩy nếu đã cài Firebase |
 | 15 | B | Bấm "Đã xử lý" | A thấy "đã xử lý" kèm tên B |
 | 16 | A | Đặt thêm 1 giờ cách 3 phút, rồi để C không trả lời; B bấm **Đánh dấu** | Máy C ngừng báo trong khoảng 20 giây |
 | 17 | A | Xóa một thuốc | Máy C không còn báo thuốc đó |

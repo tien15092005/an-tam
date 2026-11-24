@@ -29,7 +29,8 @@ class QuestionArgs {
 }
 
 /// Full-screen alarm over the lock screen (plan §9): every medicine due, with photo and description,
-/// from the copy saved on the phone (works offline). Ends only by an answer or a 10-minute snooze.
+/// from the copy saved on the phone (works offline). Ends by an answer or a 10-minute snooze; unanswered,
+/// the phone goes quiet after 2 minutes and rings again twice, 10 minutes apart (AlarmService).
 class AlarmScreen extends ConsumerStatefulWidget {
   const AlarmScreen({super.key});
 
@@ -39,6 +40,9 @@ class AlarmScreen extends ConsumerStatefulWidget {
 
 class _AlarmScreenState extends ConsumerState<AlarmScreen> {
   List<int> _ids = const [];
+
+  /// Which ring this is (1 at the dose time, up to [maxAlarmAttempts]); snoozing is not offered on the last.
+  int _attempt = 1;
   Timer? _poll;
   Timer? _sync;
   bool _busy = false;
@@ -81,12 +85,34 @@ class _AlarmScreenState extends ConsumerState<AlarmScreen> {
 
   Future<void> _loadIds() async {
     final ids = await AlarmChannel.ringingIds();
+    final attempt = await AlarmChannel.ringingAttempt();
     if (!mounted || _busy) return;
     if (ids.isEmpty && _ids.isNotEmpty) {
-      context.go('/'); // Stopped elsewhere (e.g. a caregiver marked it, Phase 6).
+      // Stopped elsewhere: a caregiver marked it, or nobody answered for 2 minutes and the phone went quiet.
+      context.go('/');
       return;
     }
-    if (ids.join(',') != _ids.join(',')) setState(() => _ids = ids);
+    if (ids.join(',') != _ids.join(',') || attempt != _attempt) {
+      setState(() {
+        _ids = ids;
+        _attempt = attempt;
+      });
+    }
+    _stopIfAlreadyAnswered();
+  }
+
+  /// A repeat ring for doses answered meanwhile (e.g. from the home screen while offline): stop at once.
+  Future<void> _stopIfAlreadyAnswered() async {
+    final s = ref.read(elderScheduleProvider).value;
+    if (s == null || _ids.isEmpty || _busy) return;
+    final minutes = _ids.map(doseMinuteOf).whereType<DateTime>().toSet();
+    if (minutes.length != _ids.length) return; // an id without a dose minute: keep ringing to be safe
+    if (_due(s).isNotEmpty || _exercisesDue(s).isNotEmpty) return;
+    if (minutes.every((m) => s.medsAt(m).isEmpty && s.exercisesAt(m).isEmpty)) return; // schedule not loaded yet
+    setState(() => _busy = true);
+    await AlarmChannel.stopRinging();
+    await AlarmChannel.answered([for (final m in minutes) alarmIdForMinute(m)]);
+    if (mounted) context.go('/');
   }
 
   @override
@@ -151,6 +177,9 @@ class _AlarmScreenState extends ConsumerState<AlarmScreen> {
     setState(() => _busy = true);
     final due = _due(ref.read(elderScheduleProvider).value);
     await AlarmChannel.stopRinging();
+    await AlarmChannel.answered([
+      for (final m in _ids.map(doseMinuteOf).whereType<DateTime>().toSet()) alarmIdForMinute(m),
+    ]);
     final outbox = ref.read(outboxProvider);
     final eventIds = <String>[
       for (final e in due.entries)
@@ -171,7 +200,7 @@ class _AlarmScreenState extends ConsumerState<AlarmScreen> {
   }
 
   Future<void> _snooze() async {
-    if (_busy) return;
+    if (_busy || _attempt >= maxAlarmAttempts) return;
     setState(() => _busy = true);
     final s = ref.read(elderScheduleProvider).value;
     final ids = _ids;
@@ -189,6 +218,7 @@ class _AlarmScreenState extends ConsumerState<AlarmScreen> {
         at: at,
         title: onlyExercise ? 'Nhắc lại: tập thể dục' : 'Nhắc lại: ${titleFor(meds)}',
         speech: onlyExercise ? exerciseSpeechFor(s?.callName ?? '', exercises) : speechFor(s?.callName ?? '', meds),
+        attempt: _attempt + 1,
       );
     }
     if (mounted) context.go('/');
@@ -208,8 +238,11 @@ class _AlarmScreenState extends ConsumerState<AlarmScreen> {
         _answer(taken: true, byVoice: true);
       case ConfirmIntent.notTaken:
         _answer(taken: false, byVoice: true);
-      case ConfirmIntent.snooze:
+      case ConfirmIntent.snooze when _attempt < maxAlarmAttempts:
         _snooze();
+      case ConfirmIntent.snooze:
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Đây là lần nhắc cuối. Hãy bấm Đã uống hoặc Chưa uống được.')));
       case ConfirmIntent.unknown:
         // Not sure what was said: record nothing, keep reminding (plan §9).
         ScaffoldMessenger.of(context)
@@ -232,135 +265,147 @@ class _AlarmScreenState extends ConsumerState<AlarmScreen> {
       for (final (minute, e) in exercises)
         _ExerciseCard(minute: minute, exercise: e, onGo: onlyExercise || _busy ? null : () => _markExercise(minute, e)),
     ];
+    final name = schedule?.callName ?? '';
+    final lastRing = _attempt >= maxAlarmAttempts;
     return Theme(
       data: AppTheme.build(UiDensity.elder),
       child: Builder(
         builder: (context) {
           final text = Theme.of(context).textTheme;
-          final white = text.bodyLarge?.copyWith(color: Colors.white);
+          final onBand = text.bodyLarge?.copyWith(color: AppColors.onAccent);
           return PopScope(
             canPop: false, // Back does not end the alarm; only an answer or a snooze does.
             child: Scaffold(
-              backgroundColor: AppColors.primary,
-              body: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.md),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
+              backgroundColor: AppColors.surface,
+              body: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    color: AppColors.primary,
+                    padding: EdgeInsets.fromLTRB(
+                        AppSpacing.lg, MediaQuery.paddingOf(context).top + AppSpacing.md, AppSpacing.lg, AppSpacing.md),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Row(children: [
+                        Icon(Icons.volume_up, color: AppColors.onAccent, size: 24),
+                        const SizedBox(width: AppSpacing.sm),
+                        Text(_attempt > 1 ? 'Nhắc lại lần $_attempt' : 'Đang đọc to...', style: onBand),
+                      ]),
                       Semantics(
                         header: true,
                         child: Text(
-                          onlyExercise ? 'Đến giờ tập thể dục' : 'Đến giờ uống thuốc',
-                          textAlign: TextAlign.center,
-                          style: text.headlineMedium?.copyWith(color: Colors.white),
+                          '${name.isEmpty ? '' : '$name ơi, '}${onlyExercise ? 'đến giờ tập thể dục' : 'đến giờ uống thuốc'}',
+                          style: text.headlineSmall?.copyWith(color: AppColors.onAccent, height: 1.15),
                         ),
                       ),
-                      if (cards.length > 1)
-                        Text(
-                          '${medCards.isEmpty ? '${cards.length} việc' : '${medCards.length} loại thuốc'} · đang xem ${_page + 1}/${cards.length}',
-                          textAlign: TextAlign.center,
-                          style: white,
+                    ]),
+                  ),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 0),
+                      child: Column(children: [
+                        Expanded(
+                          child: cards.isEmpty
+                              ? Center(
+                                  child: Text('Uống thuốc theo lịch con dặn.',
+                                      textAlign: TextAlign.center, style: text.titleMedium),
+                                )
+                              : PageView(
+                                  controller: _pages,
+                                  onPageChanged: (i) => setState(() => _page = i),
+                                  children: cards,
+                                ),
                         ),
-                      const SizedBox(height: AppSpacing.sm),
-                      Expanded(
-                        child: cards.isEmpty
-                            ? Center(
-                                child: Text('Uống thuốc theo lịch con dặn.', textAlign: TextAlign.center, style: white),
-                              )
-                            : PageView(
-                                controller: _pages,
-                                onPageChanged: (i) => setState(() => _page = i),
-                                children: cards,
-                              ),
-                      ),
-                      if (cards.length > 1)
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
+                        if (cards.length > 1)
+                          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                             IconButton(
                               tooltip: 'Thuốc trước',
-                              color: Colors.white,
                               iconSize: 40,
                               onPressed: _page == 0
                                   ? null
-                                  : () => _pages.previousPage(
-                                      duration: const Duration(milliseconds: 250),
-                                      curve: Curves.easeOut,
-                                    ),
+                                  : () => _pages.previousPage(duration: const Duration(milliseconds: 250), curve: Curves.easeOut),
                               icon: const Icon(Icons.chevron_left),
                             ),
+                            Text('${_page + 1} trong ${cards.length}', style: text.bodyLarge?.copyWith(color: AppColors.muted)),
                             IconButton(
                               tooltip: 'Thuốc tiếp theo',
-                              color: Colors.white,
                               iconSize: 40,
                               onPressed: _page >= cards.length - 1
                                   ? null
-                                  : () => _pages.nextPage(
-                                      duration: const Duration(milliseconds: 250),
-                                      curve: Curves.easeOut,
-                                    ),
+                                  : () => _pages.nextPage(duration: const Duration(milliseconds: 250), curve: Curves.easeOut),
                               icon: const Icon(Icons.chevron_right),
                             ),
-                          ],
-                        ),
-                      const SizedBox(height: AppSpacing.sm),
-                      if (onlyExercise)
-                        FilledButton.icon(
-                          key: const Key('goExercise'),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: AppColors.ok,
-                            minimumSize: const Size.fromHeight(96),
-                          ),
-                          onPressed: _busy ? null : _goExercise,
-                          icon: const Icon(Icons.directions_walk, size: 40),
-                          label: const Text('TÔI ĐI TẬP ĐÂY'),
-                        )
-                      else ...[
-                        FilledButton.icon(
-                          key: const Key('confirmTaken'),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: AppColors.ok,
-                            minimumSize: const Size.fromHeight(96),
-                          ),
-                          onPressed: _busy ? null : () => _answer(taken: true),
-                          icon: const Icon(Icons.check_circle, size: 40),
-                          label: Text(cards.length > 1 ? 'ĐÃ UỐNG HẾT RỒI' : 'ĐÃ UỐNG RỒI'),
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        OutlinedButton.icon(
-                          key: const Key('notTaken'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            side: const BorderSide(color: Colors.white, width: 2),
-                            minimumSize: const Size.fromHeight(72),
-                          ),
-                          onPressed: _busy ? null : () => _answer(taken: false),
-                          icon: const Icon(Icons.block, size: 32),
-                          label: const Text('KHÔNG UỐNG ĐƯỢC'),
-                        ),
-                      ],
-                      const SizedBox(height: AppSpacing.sm),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextButton(
-                              style: TextButton.styleFrom(
-                                foregroundColor: Colors.white,
-                                minimumSize: const Size(0, 64),
-                              ),
-                              onPressed: _busy ? null : _snooze,
-                              child: const Text('Nhắc lại sau 10 phút', textAlign: TextAlign.center),
-                            ),
-                          ),
-                          VoiceButton(onHeard: _onVoice),
-                        ],
-                      ),
-                    ],
+                          ]),
+                      ]),
+                    ),
                   ),
-                ),
+                  SafeArea(
+                    top: false,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.md),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                        if (onlyExercise)
+                          FilledButton.icon(
+                            key: const Key('goExercise'),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.ok,
+                              foregroundColor: AppColors.onAccent,
+                              minimumSize: const Size.fromHeight(100),
+                              textStyle: text.headlineSmall?.copyWith(fontSize: 28),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
+                            ),
+                            onPressed: _busy ? null : _goExercise,
+                            icon: const Icon(Icons.directions_walk, size: 40),
+                            label: const Text('TÔI ĐI TẬP ĐÂY'),
+                          )
+                        else ...[
+                          FilledButton.icon(
+                            key: const Key('confirmTaken'),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.ok,
+                              foregroundColor: AppColors.onAccent,
+                              minimumSize: const Size.fromHeight(100),
+                              textStyle: text.headlineSmall?.copyWith(fontSize: 28),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
+                            ),
+                            onPressed: _busy ? null : () => _answer(taken: true),
+                            icon: const Icon(Icons.check, size: 40),
+                            label: Text(cards.length > 1 ? 'ĐÃ UỐNG HẾT' : 'ĐÃ UỐNG RỒI'),
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          Row(children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                key: const Key('notTaken'),
+                                style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(76)),
+                                onPressed: _busy ? null : () => _answer(taken: false),
+                                child: const Text('Chưa uống được', textAlign: TextAlign.center),
+                              ),
+                            ),
+                            if (!lastRing) ...[
+                              const SizedBox(width: AppSpacing.sm),
+                              Expanded(
+                                child: OutlinedButton(
+                                  key: const Key('snooze'),
+                                  style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(76)),
+                                  onPressed: _busy ? null : _snooze,
+                                  child: const Text('Nhắc lại sau 10 phút', textAlign: TextAlign.center),
+                                ),
+                              ),
+                            ],
+                          ]),
+                        ],
+                        if (lastRing)
+                          Padding(
+                            padding: const EdgeInsets.only(top: AppSpacing.sm),
+                            child: Text('Đây là lần nhắc cuối. Chưa trả lời thì các con sẽ được báo.',
+                                textAlign: TextAlign.center, style: text.bodyMedium),
+                          ),
+                        const SizedBox(height: AppSpacing.sm),
+                        Center(child: VoiceButton(onHeard: _onVoice, foreground: AppColors.primary)),
+                      ]),
+                    ),
+                  ),
+                ],
               ),
             ),
           );
@@ -389,7 +434,7 @@ class _ExerciseCard extends StatelessWidget {
         child: SingleChildScrollView(
           child: Column(
             children: [
-              const Icon(Icons.directions_walk, size: 96, color: AppColors.ok, semanticLabel: 'Tập thể dục'),
+              Icon(Icons.directions_walk, size: 96, color: AppColors.ok, semanticLabel: 'Tập thể dục'),
               Text(exercise.title, style: text.headlineSmall, textAlign: TextAlign.center),
               if (exercise.durationMin != null) Text('${exercise.durationMin} phút', style: text.titleMedium),
               if (exercise.note != null) Text(exercise.note!, style: text.bodyLarge, textAlign: TextAlign.center),

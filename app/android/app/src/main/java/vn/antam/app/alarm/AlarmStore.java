@@ -25,12 +25,19 @@ public final class AlarmStore {
         public final long triggerAtMillis;
         public final String title;
         public final String speech;
+        /** 1 for the alarm at the dose time, 2 and 3 for the reminders after it (see AlarmService). */
+        public final int attempt;
 
         public Alarm(int id, long triggerAtMillis, String title, String speech) {
+            this(id, triggerAtMillis, title, speech, 1);
+        }
+
+        public Alarm(int id, long triggerAtMillis, String title, String speech, int attempt) {
             this.id = id;
             this.triggerAtMillis = triggerAtMillis;
             this.title = title;
             this.speech = speech;
+            this.attempt = Math.max(1, attempt);
         }
 
         JSONObject toJson() throws JSONException {
@@ -38,11 +45,13 @@ public final class AlarmStore {
                     .put("id", id)
                     .put("triggerAtMillis", triggerAtMillis)
                     .put("title", title)
-                    .put("speech", speech);
+                    .put("speech", speech)
+                    .put("attempt", attempt);
         }
 
         static Alarm fromJson(JSONObject o) throws JSONException {
-            return new Alarm(o.getInt("id"), o.getLong("triggerAtMillis"), o.getString("title"), o.getString("speech"));
+            return new Alarm(o.getInt("id"), o.getLong("triggerAtMillis"), o.getString("title"), o.getString("speech"),
+                    o.optInt("attempt", 1));
         }
     }
 
@@ -99,17 +108,34 @@ public final class AlarmStore {
     /** Alarms ringing now (several when a new one fires before the last was answered), oldest first. */
     static synchronized List<Integer> ringingIds(Context context) {
         List<Integer> ids = new ArrayList<>();
-        for (String part : prefs(context).getString(KEY_RINGING, "").split(",")) {
-            if (!part.isEmpty()) ids.add(Integer.parseInt(part));
-        }
+        for (int[] r : ringing(context)) ids.add(r[0]);
         return ids;
     }
 
-    static synchronized void addRinging(Context context, int id) {
-        List<Integer> ids = ringingIds(context);
-        if (!ids.contains(id)) ids.add(id);
+    /** The highest attempt among the alarms ringing now (1 = at the dose time), or 0 when nothing rings. */
+    static synchronized int ringingAttempt(Context context) {
+        int max = 0;
+        for (int[] r : ringing(context)) max = Math.max(max, r[1]);
+        return max;
+    }
+
+    /** Pairs of {id, attempt}, stored as "id:attempt,id:attempt". */
+    private static List<int[]> ringing(Context context) {
+        List<int[]> out = new ArrayList<>();
+        for (String part : prefs(context).getString(KEY_RINGING, "").split(",")) {
+            if (part.isEmpty()) continue;
+            String[] p = part.split(":");
+            out.add(new int[]{Integer.parseInt(p[0]), p.length > 1 ? Integer.parseInt(p[1]) : 1});
+        }
+        return out;
+    }
+
+    static synchronized void addRinging(Context context, int id, int attempt) {
+        List<int[]> all = ringing(context);
+        all.removeIf(r -> r[0] == id);
+        all.add(new int[]{id, attempt});
         StringBuilder sb = new StringBuilder();
-        for (int i : ids) sb.append(sb.length() == 0 ? "" : ",").append(i);
+        for (int[] r : all) sb.append(sb.length() == 0 ? "" : ",").append(r[0]).append(':').append(r[1]);
         prefs(context).edit().putString(KEY_RINGING, sb.toString()).apply();
     }
 

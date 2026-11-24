@@ -29,14 +29,14 @@ Quy tắc bắt buộc:
 |---|---|---|
 | **Người già** (`ELDER`) | Được nhắc, phân biệt được thuốc qua ảnh và mô tả, xác nhận, báo vấn đề | Cực đơn giản, chữ rất to |
 | **Trưởng nhóm** (`OWNER`) | Quyền cao nhất: đặt lịch, thêm, sửa, xóa thuốc, quản lý thành viên | Đầy đủ |
-| **Thành viên** (`MEMBER`) | Người con khác: xem, nhận báo cáo, chat, xử lý cảnh báo, đánh dấu giúp | Đầy đủ, không có nút sửa lịch |
+| **Thành viên** (`MEMBER`) | Người con khác: xem, nhận báo cáo, xử lý cảnh báo, đánh dấu giúp | Đầy đủ, không có nút sửa lịch |
 | **Admin hệ thống** | Quản lý tài khoản, xem thống kê tổng hợp | Màn hình quản trị đơn giản |
 
 **Giá trị cốt lõi:** điện thoại người già phải báo đúng giờ kể cả khi không có mạng, server lỗi, app đã đóng, màn hình khóa hoặc máy vừa khởi động lại. **Báo thức không được phụ thuộc vào backend hay AI tại thời điểm báo.**
 
 **Đã bỏ khỏi phạm vi:** số đo sức khỏe (huyết áp, đường huyết...). Không tạo bảng, API hay màn hình cho phần này. Giữ nút "Tôi thấy không khỏe" vì đây là cảnh báo, không phải số đo.
 
-**Ngoài phạm vi:** xuất bản lên cửa hàng, thanh toán, tư vấn y khoa, đọc chữ viết tay, tự huấn luyện mô hình đọc chữ, gọi thoại và video, gửi ảnh trong chat.
+**Ngoài phạm vi:** xuất bản lên cửa hàng, thanh toán, tư vấn y khoa, đọc chữ viết tay, tự huấn luyện mô hình đọc chữ, gọi thoại và video, **chat nhóm** (thầy chốt bỏ ngày 24/11/2026 vì không thiết thực).
 
 ## 3. Công nghệ đã chốt
 
@@ -52,7 +52,6 @@ Quy tắc bắt buộc:
 | Backend | **Java LTS, Spring Boot**, Spring Security, Spring Data JPA | |
 | CSDL | **PostgreSQL**, Flyway | Mọi thay đổi đi qua migration |
 | Lưu ảnh | Docker volume, tải về qua API có kiểm tra quyền | Không có đường dẫn công khai |
-| Chat thời gian thực | WebSocket của Spring, kèm REST để lấy lịch sử | Mất kết nối thì lấy lại bằng REST |
 | Thông báo đẩy | Firebase Cloud Messaging | Chỉ dùng Firebase cho FCM |
 | AI | **Python, FastAPI** | Chỉ backend được gọi |
 | Hạ tầng | **Docker Compose trên laptop + đường hầm HTTPS** | Giới hạn xem `docs/DECISIONS.md`. Địa chỉ server đổi được trong app |
@@ -66,7 +65,6 @@ Android là mục tiêu nghiệm thu. iPhone là phần tùy chọn ở Giai đo
 ```mermaid
 flowchart LR
   A[App Flutter] -->|HTTPS REST + JSON + JWT| B[Backend Spring Boot]
-  A <-->|WebSocket chat| B
   B --> C[(PostgreSQL)]
   B --> M[(Kho ảnh thuốc)]
   B -->|Mạng nội bộ + service token| D[AI service FastAPI]
@@ -85,13 +83,13 @@ Nguyên tắc:
 
 ## 5. Nhóm gia đình và phân quyền
 
-Mô hình giống nhóm chat Messenger: mỗi người có một tài khoản, một tài khoản có thể ở nhiều nhóm.
+Mô hình nhóm gia đình: mỗi người có một tài khoản, một tài khoản có thể ở nhiều nhóm.
 
 - Một nhóm gồm **1 trưởng nhóm**, nhiều người con và nhiều người già. Ví dụ một nhóm có cả bố, mẹ và 3 người con.
-- **Một người con thuộc được nhiều nhóm**, ví dụ nhóm nhà mình và nhóm nhà vợ. App có bộ chuyển nhóm giống chuyển đoạn chat.
+- **Một người con thuộc được nhiều nhóm**, ví dụ nhóm nhà mình và nhóm nhà vợ. App có bộ chuyển nhóm ở đầu màn hình.
 - **Mỗi người già thuộc đúng 1 nhóm**, để không có hai trưởng nhóm đặt lịch trùng nhau.
 - **Mỗi nhóm luôn có đúng 1 trưởng nhóm.** Trưởng nhóm muốn rời thì phải chuyển quyền trước. Nếu là người con duy nhất, rời nhóm đồng nghĩa với xóa nhóm, cần xác nhận rõ.
-- Các con bàn trong chat nhóm, thống nhất rồi trưởng nhóm đặt lịch. Mọi thay đổi lịch được ghi lại ai đổi và lúc nào, đồng thời đăng thành tin hệ thống trong chat.
+- Trưởng nhóm đặt lịch. Mọi thay đổi lịch được ghi lại ai đổi và lúc nào (`audit_logs`).
 
 **Ma trận quyền** (viết test tích hợp cho từng ô):
 
@@ -105,10 +103,9 @@ Mô hình giống nhóm chat Messenger: mỗi người có một tài khoản, m
 | Tự rời nhóm | Sau khi chuyển quyền | Có | Không | Không |
 | Đánh dấu giúp "đã uống" hoặc hoàn tác | Có | Có | Không | Không |
 | Xử lý cảnh báo | Có | Có | Không | Không |
-| Chat nhóm | Có | Có | Không | Không |
 | Xác nhận thuốc, trả lời câu hỏi, báo không khỏe | Không | Không | Chỉ của mình | Không |
 
-Admin hệ thống **không** đọc được thuốc, ảnh, chat hay trạng thái uống thuốc, chỉ thấy số liệu tổng hợp.
+Admin hệ thống **không** đọc được thuốc, ảnh hay trạng thái uống thuốc, chỉ thấy số liệu tổng hợp.
 
 **Đăng nhập và ghép nối:**
 
@@ -134,9 +131,6 @@ erDiagram
   EXERCISES ||--o{ EXERCISE_LOGS : ghi_nhan
   FAMILY_GROUPS ||--o{ ALERTS : co
   DOSE_LOGS ||--o{ ALERTS : phat_sinh
-  FAMILY_GROUPS ||--o{ CHAT_MESSAGES : co
-  ALERTS ||--o{ CHAT_MESSAGES : thong_bao
-  FAMILY_GROUPS ||--o{ CHAT_READ_STATES : co
   FAMILY_GROUPS ||--o{ AUDIT_LOGS : co
   USERS ||--o{ NOTIFICATION_OUTBOX : nhan
 ```
@@ -183,10 +177,6 @@ alerts(id PK, group_id FK, elder_user_id FK,
        dose_log_id FK NULL, medication_id FK NULL, client_event_id UNIQUE NULL,
        created_at, resolved_at, resolved_by FK NULL)
 
-chat_messages(id PK, group_id FK, sender_id FK NULL, type[TEXT|SYSTEM], body, alert_id FK NULL,
-              client_message_id, created_at, deleted_at, UNIQUE(sender_id, client_message_id))
-chat_read_states(group_id FK, user_id FK, last_read_message_id, PK(group_id, user_id))
-
 audit_logs(id PK, group_id FK, actor_id FK, action, entity_type, entity_id, changes JSONB, created_at)
 notification_outbox(id PK, dedupe_key UNIQUE, user_id FK, payload JSONB, status, created_at, sent_at)
 ```
@@ -199,7 +189,7 @@ Quy tắc:
 - **Không lưu trạng thái "quên".** Tính từ lịch và log.
 - **Xóa thuốc là xóa mềm** (`active = false`, xóa ảnh mềm) để giữ lịch sử. Ảnh đã xóa bị dọn khỏi kho sau một thời gian, và lịch sử chỉ dùng `name_snapshot`.
 - **Sửa giờ hoặc liều của thuốc đã có lịch sử:** đóng bản cũ (`end_date` = hôm qua), tạo bản mới cùng `series_id`. Lịch sử cũ không đổi.
-- Mọi thay đổi thuốc và lịch: tăng `schedule_version`, ghi `audit_logs`, gửi FCM để máy người già tải lại, đăng tin hệ thống vào chat, tất cả trong cùng một transaction hoặc qua outbox.
+- Mọi thay đổi thuốc và lịch: tăng `schedule_version`, ghi `audit_logs`, gửi FCM để máy người già tải lại, tất cả trong cùng một transaction hoặc qua outbox.
 
 ## 7. Trạng thái một lần nhắc
 
@@ -207,8 +197,8 @@ Quy tắc:
 |---|---|
 | Có log | `TAKEN`, `NOT_TAKEN`, `SKIPPED` hoặc `DONE` |
 | Chưa tới giờ | `UPCOMING` |
-| Từ lúc tới giờ đến 60 phút sau | `DUE` |
-| Quá 60 phút, chưa có log | `MISSED` |
+| Từ lúc tới giờ đến 30 phút sau | `DUE` |
+| Quá 30 phút, chưa có log | `MISSED` |
 
 Logic có ở cả Dart và Java nên **dùng chung bộ dữ liệu kiểm thử** `shared/test-vectors/dose-status.json`. Phủ các mốc: đúng phút đến giờ, phút 60, phút 61, qua nửa đêm, ngày đầu và cuối đợt thuốc, thuốc tạo sau giờ uống trong ngày.
 
@@ -298,17 +288,17 @@ stateDiagram-v2
 **Khi báo (báo liên tục đến khi xác nhận):**
 
 - Màn hình báo hiện trên màn hình khóa (`showWhenLocked`, `turnScreenOn`), cùng chuông và rung.
-- **Đọc lặp lại liên tục, không giới hạn số lượt**, nghỉ ngắn giữa các lượt (mặc định 20 giây sau khi đọc xong). Phát qua luồng **USAGE_ALARM**, vẫn nghe được khi âm lượng media bằng 0.
+- **Mỗi lần báo kéo dài tối đa 2 phút**, đọc lặp lại, nghỉ 20 giây sau mỗi lượt đọc. Không ai trả lời thì máy im, hiện thông báo yên lặng "Chưa xác nhận" và **tự báo lại sau 10 phút**. Tối đa **3 lần báo** cho một giờ uống (lúc tới giờ, +10, +20 phút); bấm "Nhắc lại sau 10 phút" cũng tính là một lần, và lần thứ 3 không còn nút này. Phát qua luồng **USAGE_ALARM**, vẫn nghe được khi âm lượng media bằng 0.
 - Cần foreground service phù hợp để tiếp tục khi màn hình tắt. Đọc tài liệu về loại foreground service và giới hạn thời gian, đặc biệt trên Android 15 trở lên. Vuốt bỏ thông báo không được làm dừng báo.
 - **Chỉ dừng khi:** người già xác nhận, người già chọn hoãn 10 phút, hoặc người con đánh dấu giúp (FCM báo dừng, máy áp dụng khi nhận được).
-- Quá 60 phút chưa xác nhận: backend tạo cảnh báo `NOT_CONFIRMED` cho người con. **Máy người già vẫn tiếp tục báo.** Nội dung ghi "chưa xác nhận", không khẳng định đã quên, vì máy có thể đang tắt.
+- Quá 30 phút chưa xác nhận (sau lần báo thứ 3): backend tạo cảnh báo `NOT_CONFIRMED` cho người con. **Máy người già không kêu nữa**, trang chính hiện thẻ "Thuốc HH:MM chưa trả lời" để người già vẫn bấm được Đã uống / Chưa uống được; trả lời muộn sẽ đóng cảnh báo và báo các con kèm chữ "trả lời muộn". Nội dung ghi "chưa xác nhận", không khẳng định đã quên, vì máy có thể đang tắt.
 - Có lần báo mới khi lần cũ chưa xong: gộp vào cùng màn hình, không phát chồng tiếng.
 - Lần tập thể dục dùng cùng cơ chế nhưng đọc nội dung tương ứng, nút **TÔI ĐI TẬP ĐÂY**, không hỏi vấn đề về thuốc.
 
 **Màn hình báo:**
 
 - **Ảnh thuốc lớn**, tên, liều, mô tả hình dạng và màu. Nhiều thuốc cùng giờ thì hiện từng thẻ để lướt, kèm số thuốc.
-- Nút rất lớn **ĐÃ UỐNG RỒI**, nút **KHÔNG UỐNG ĐƯỢC**, nút phụ **Nhắc lại sau 10 phút**.
+- Nút rất lớn **ĐÃ UỐNG RỒI**, nút **Chưa uống được**, nút phụ **Nhắc lại sau 10 phút** (ẩn ở lần báo thứ 3).
 - Giọng đọc: "{call_name} ơi, đến giờ uống thuốc rồi ạ. {tên thuốc}, {liều}. {mô tả, ví dụ: viên tròn nhỏ màu trắng}. Uống xong, {call_name} bấm nút màu xanh hoặc nói: đã uống."
 - Máy chưa có giọng tiếng Việt: cảnh báo cho người cài đặt, không đọc bằng giọng tiếng Anh. Khi báo thì vẫn chuông, rung và chữ.
 - Xác nhận giọng nói: xin quyền micro kèm giải thích, chỉ nghe trong lúc nghỉ giữa các lượt đọc. Câu có "chưa" hoặc "không" **không** tính là đã uống. Khớp rõ ("đã uống", "uống rồi", "xong rồi") mới ghi `source = VOICE`. "Lát nữa", "chờ chút" thì hoãn. Không chắc thì không ghi và đọc tiếp.
@@ -323,36 +313,27 @@ Dừng đọc tên thuốc, chuyển sang một câu hỏi: "{call_name} có g�
 | **Mất thuốc** | Cảnh báo `LOST_MEDICINE` |
 | **Hết thuốc** | Cảnh báo `OUT_OF_MEDICINE` |
 | **Thuốc trông khác, không chắc** | Cảnh báo `UNSURE_PILL` |
-| **Tôi thấy không khỏe** | Cảnh báo `UNWELL` |
+| **Tôi thấy mệt** | Cảnh báo `UNWELL` |
 | **Vấn đề khác** | Cảnh báo `OTHER_ISSUE`, gợi ý gọi cho con |
 
 - Cũng trả lời được bằng giọng nói ("không có gì", "mất thuốc", "hết thuốc", "thấy mệt"). Không chắc thì không suy đoán.
 - Đọc câu hỏi tối đa 3 lần trong 2 phút. Không trả lời thì ghi `NO_RESPONSE` và kết thúc, đã xác nhận uống vẫn giữ nguyên.
 - Chọn **KHÔNG UỐNG ĐƯỢC** thì ghi `NOT_TAKEN` và hiện cùng câu hỏi, lấy lý do.
 - **Sau đó gửi báo cáo cho tất cả người con trong nhóm và dừng thông báo.** Offline thì xếp hàng và tự gửi lại. Người già không thấy thông báo lỗi.
-- Người con nhận thông báo đẩy, cảnh báo đỏ trong app và tin hệ thống trong chat. Báo có vấn đề hiện nổi bật hơn báo bình thường. Ai xử lý thì ghi người xử lý; người khác thấy đã xử lý.
+- Người con nhận thông báo đẩy, cảnh báo đỏ trong app. Báo có vấn đề hiện nổi bật hơn báo bình thường. Ai xử lý thì ghi người xử lý; người khác thấy đã xử lý.
 - App **không** khuyên uống bù, gộp liều hay đổi thuốc. Với `UNWELL`, hiện nút gọi con và dòng "Nếu nguy cấp, gọi cấp cứu 115".
 
-**Trang chính người già:** chữ thân từ 20sp, tiêu đề từ 32sp, nút chính cao từ 72dp, tương phản từ 7:1, không dùng thao tác vuốt bắt buộc hay giữ lâu, trạng thái luôn có biểu tượng + chữ + màu, dùng được với cỡ chữ 200% và TalkBack. Gồm: lời chào theo `call_name`, giờ hiện tại, thẻ việc tiếp theo có ảnh thuốc, danh sách việc hôm nay, **Gọi cho con**, **Tôi thấy không khỏe**. Bấm vào thuốc để xem ảnh, mô tả và nghe đọc. Người già không thấy chat.
+**Trang chính người già:** chữ thân từ 20sp, tiêu đề từ 32sp, nút chính cao từ 72dp, tương phản từ 7:1, không dùng thao tác vuốt bắt buộc hay giữ lâu, trạng thái luôn có biểu tượng + chữ + màu, dùng được với cỡ chữ 200% và TalkBack. Gồm: lời chào theo `call_name`, giờ hiện tại, thẻ việc tiếp theo có ảnh thuốc, danh sách việc hôm nay, **Gọi cho con**, **Tôi thấy mệt**. Bấm vào thuốc để xem ảnh, mô tả và nghe đọc.
 
 **Màn hình Kiểm tra độ sẵn sàng:** quyền thông báo, báo thức, full-screen, giọng tiếng Việt, micro, tối ưu pin. Mỗi mục có nút tới đúng trang cài đặt. Có hướng dẫn riêng cho Samsung.
 
 ## 10. Màn hình người con
 
-Bộ chuyển nhóm ở đầu app. Thanh điều hướng 4 tab:
+Bộ chuyển nhóm ở đầu app. Thanh điều hướng 3 tab:
 
 - **Hôm nay:** chọn người già trong nhóm, cảnh báo đỏ, tiến độ, số lần quên, buổi tập, dòng thời gian trong ngày, đánh dấu giúp hoặc hoàn tác, gọi điện.
 - **Lịch:** xem tuần và tháng, chấm trạng thái mỗi ngày kèm nhãn trợ năng. Bấm một ngày mở bottom sheet với lịch của ngày. Trưởng nhóm có thêm **Thêm thuốc** (trong đó có Quét OCR) và **Thêm lịch tập**, ngày đã chọn là ngày bắt đầu. Có danh sách thuốc, ảnh và lịch tập; trưởng nhóm sửa, xóa được, thành viên chỉ xem.
-- **Nhóm:** chat nhóm và danh sách thành viên.
-- **Cài đặt:** hồ sơ người già, tạo mã ghép máy, mời thành viên, chuyển quyền, rời nhóm, đăng xuất, xóa tài khoản và dữ liệu.
-
-**Chat nhóm (đơn giản):**
-
-- Chỉ tin nhắn chữ, không gửi ảnh, không gọi thoại, không chỉnh sửa. Người gửi xóa được tin của mình.
-- Cập nhật thời gian thực bằng WebSocket. Mất kết nối thì lấy lại bằng REST, phân trang theo con trỏ. Gửi lại không trùng nhờ `client_message_id`.
-- Tin hệ thống: "Trưởng nhóm đã đổi giờ uống Amlodipin", "Bà Lan báo hết thuốc Metformin". Nhấn vào tin cảnh báo để mở cảnh báo.
-- Thông báo đẩy khi app đóng. Có đếm tin chưa đọc.
-- Chat không phải nơi lưu thông tin bắt buộc: mọi cảnh báo vẫn hiện ở tab Hôm nay.
+- **Cài đặt:** danh sách bố mẹ và các con, hồ sơ người già, tạo mã ghép máy, mời thành viên, chuyển quyền, rời nhóm, đăng xuất, xóa tài khoản và dữ liệu.
 
 **Thông báo cho người con:** gửi qua `notification_outbox`, `dedupe_key` chống trùng, quét bù khi backend khởi động lại sau khi laptop tắt.
 
@@ -360,18 +341,18 @@ Bộ chuyển nhóm ở đầu app. Thanh điều hướng 4 tab:
 
 ## 11. Bảo mật và an toàn
 
-- **Mọi endpoint kiểm tra quyền trên từng đối tượng** theo ma trận mục 5, kể cả tải ảnh và WebSocket. Có test cho cả trường hợp được phép và bị từ chối. Đây là tiêu chí nghiệm thu.
+- **Mọi endpoint kiểm tra quyền trên từng đối tượng** theo ma trận mục 5, kể cả tải ảnh. Có test cho cả trường hợp được phép và bị từ chối. Đây là tiêu chí nghiệm thu.
 - Validate đầu vào, giới hạn đăng nhập, HTTPS khi chạy thật. Bản release không cho HTTP.
 - Bí mật đặt trong biến môi trường. AI service không mở ra Internet, yêu cầu service token.
 - App là công cụ nhắc lịch, không tư vấn y khoa, không đề xuất liều. Ảnh và mô tả chỉ để tham khảo; trong app ghi rõ nếu nghi ngờ thì đối chiếu vỏ thuốc và hỏi dược sĩ, bác sĩ.
-- Thu thập tối thiểu, có màn hình đồng ý, có xóa tài khoản và dữ liệu. Không ghi dữ liệu thuốc, ảnh, chat vào log.
+- Thu thập tối thiểu, có màn hình đồng ý, có xóa tài khoản và dữ liệu. Không ghi dữ liệu thuốc, ảnh vào log.
 - Chỉ dùng dữ liệu giả trong demo, ảnh chụp màn hình và báo cáo.
 - Đối chiếu Luật Bảo vệ dữ liệu cá nhân hiện hành nếu dùng ngoài phạm vi môn học.
 
 ## 12. Giao diện
 
 - Hệ thống riêng trong `app/lib/core/theme`: màu, chữ, kích thước, khoảng cách, bo góc. Không viết giá trị trực tiếp trong màn hình.
-- Font có đủ dấu tiếng Việt, ví dụ Be Vietnam Pro, đóng gói trong app.
+- Font có đủ dấu tiếng Việt, đóng gói trong app (đang dùng Lexend). Có giao diện sáng và tối theo cài đặt của điện thoại.
 - Hai chế độ: **Elder** (rất lớn, ít thành phần) và **Caregiver** (cân đối, nhiều thông tin).
 - Nhóm thích *Vesta Elder Care*. Chỉ học **nguyên tắc** (thẻ lớn, ít lựa chọn, ấm áp). **Không sao chép** tên, logo, hình minh họa, màu thương hiệu hay bố cục cụ thể.
 - Icon nhất quán thay vì emoji. Mọi màn hình có trạng thái rỗng, đang tải, lỗi, offline.
@@ -379,8 +360,8 @@ Bộ chuyển nhóm ở đầu app. Thanh điều hướng 4 tab:
 ## 13. Cấu trúc repo và các giai đoạn
 
 ```text
-app/                   Flutter: core, domain, data, reminder, features (auth, group, elder, caregiver, medication, ocr, chat, admin)
-backend/               Spring Boot: auth, group, elder, medication, exercise, alert, media, chat, notification, ocr, admin
+app/                   Flutter: core, domain, data, reminder, features (auth, group, elder, caregiver, medication, ocr, admin)
+backend/               Spring Boot: auth, group, elder, medication, exercise, alert, media, notification, ocr, admin
 ai-service/            FastAPI: app, tests, evaluation
 shared/test-vectors/   dữ liệu kiểm thử dùng chung
 docs/                  DECISIONS, SETUP, TEST_REPORT, API, demo-script, report/
@@ -407,9 +388,9 @@ docker-compose.yml     PostgreSQL, backend, AI service
 
 **Giai đoạn 8: Quét OCR và AI (L).** Cả 3 loại giấy tờ, lọc thông tin, AI service, màn hình duyệt, dùng ảnh cho người già. **DoD:** bộ kiểm thử đạt; có báo cáo so sánh bản nền và mô hình; không tạo được thuốc khi chưa duyệt; tắt AI vẫn nhập tay được.
 
-**Giai đoạn 9: Chat nhóm (M).** Tin nhắn, WebSocket, lịch sử, chưa đọc, tin hệ thống, thông báo đẩy. **DoD:** người ngoài nhóm không kết nối hay đọc được; mất mạng rồi gửi lại không trùng; 2 máy nhận tin thời gian thực.
+**Giai đoạn 9: Chat nhóm (đã gỡ).** Đã làm ngày 09/11/2026, thầy chốt bỏ ngày 24/11/2026 vì không thiết thực. Bảng chat được xóa bằng migration V8.
 
-**Giai đoạn 10: Admin (S).** **DoD:** admin không đọc được thuốc, ảnh, chat (có test); khóa tài khoản làm mất phiên.
+**Giai đoạn 10: Admin (S).** **DoD:** admin không đọc được thuốc, ảnh (có test); khóa tài khoản làm mất phiên.
 
 **Giai đoạn 11: Hoàn thiện (M).** Lỗi và offline, đồng ý và xóa dữ liệu, sao lưu, lint, coverage, APK release, dữ liệu demo giả. **DoD:** cài APK trên máy sạch, chạy hết kịch bản nghiệm thu.
 
@@ -417,7 +398,7 @@ docker-compose.yml     PostgreSQL, backend, AI service
 
 **Giai đoạn 13: iPhone (tùy chọn).** Cần Mac hoặc dịch vụ build, và tài khoản Apple Developer nếu cài máy thật. Báo liên tục khi app đóng có thể không làm được trên iPhone. **DoD:** ghi đúng những gì iPhone làm được và không làm được.
 
-**Kịch bản nghiệm thu (3 máy: trưởng nhóm, thành viên, người già):** đăng ký → tạo nhóm → mời thành viên → ghép máy người già → hai con chat bàn lịch → trưởng nhóm Quét OCR bao bì và hóa đơn, duyệt, thêm ảnh và mô tả, đặt giờ → thành viên thử sửa thuốc và bị từ chối → máy người già bật máy bay, tắt app → đến giờ vẫn đổ chuông, đọc tên và mô tả thuốc, hiện ảnh, đọc liên tục → xác nhận → chọn "Mất thuốc" → dừng báo → bật mạng → cả hai con nhận báo cáo và thấy tin trong chat → một con xử lý cảnh báo → trưởng nhóm xóa một thuốc → máy người già không còn báo → khởi động lại máy người già → báo thức tiếp theo vẫn chạy → tắt AI service → vẫn nhập tay được.
+**Kịch bản nghiệm thu (3 máy: trưởng nhóm, thành viên, người già):** đăng ký → tạo nhóm → mời thành viên → ghép máy người già → trưởng nhóm Quét OCR bao bì và hóa đơn, duyệt, thêm ảnh và mô tả, đặt giờ → thành viên thử sửa thuốc và bị từ chối → máy người già bật máy bay, tắt app → đến giờ vẫn đổ chuông, đọc tên và mô tả thuốc, hiện ảnh, đọc liên tục → xác nhận → chọn "Mất thuốc" → dừng báo → bật mạng → cả hai con nhận báo cáo ở tab Hôm nay → một con xử lý cảnh báo → trưởng nhóm xóa một thuốc → máy người già không còn báo → khởi động lại máy người già → báo thức tiếp theo vẫn chạy → tắt AI service → vẫn nhập tay được.
 
 ## 14. Báo cáo theo khung của môn học
 
@@ -432,11 +413,11 @@ Theo file `Yeu cau bai tap nhom Mobile App 11.2025.docx`. Lưu bản nháp trong
 | Lý do chọn ứng dụng; so sánh ưu, nhược các ứng dụng tương tự và điểm khác | Nhóm khảo sát thật trên cửa hàng ứng dụng; không viết nhận xét về app chưa dùng thử |
 | Yêu cầu chức năng, phi chức năng | Mục 2, 5, 8, 9, 10, 11 |
 | Biểu đồ Use Case tổng quát | Tác nhân: Người già, Trưởng nhóm, Thành viên, Admin, FCM |
-| Lựa chọn kiến trúc, công nghệ, mô hình | Mục 3, 4. Trình bày cả chat và vấn đề tải, đồng bộ |
+| Lựa chọn kiến trúc, công nghệ, mô hình | Mục 3, 4. Trình bày vấn đề tải, đồng bộ |
 | Hình thức lưu trữ, ERD | Mục 6: PostgreSQL, SQLite trên máy, kho ảnh |
 | Nội dung mới, khó; hướng phát triển | Xem gợi ý bên dưới; chỉ ghi những gì đã làm thật |
 
-Gợi ý điểm mới: ảnh và mô tả giúp người già phân biệt thuốc, báo liên tục và hỏi lại vấn đề, nhóm gia đình phân quyền kiểu nhóm chat. Gợi ý điểm khó: báo thức tin cậy trên Android, đồng bộ offline không trùng, OCR tiếng Việt và tách thông tin, chat thời gian thực.
+Gợi ý điểm mới: ảnh và mô tả giúp người già phân biệt thuốc, báo liên tục và hỏi lại vấn đề, nhóm gia đình có phân quyền. Gợi ý điểm khó: báo thức tin cậy trên Android, đồng bộ offline không trùng, OCR tiếng Việt và tách thông tin.
 
 **Phần 2, mỗi thành viên ghi tên và trình bày phần mình:** mô tả chi tiết chức năng (luồng, biểu đồ hoạt động, ràng buộc nghiệp vụ); giao diện cụ thể; giải pháp kỹ thuật (thành phần kiến trúc, dữ liệu liên quan); điểm mới; điểm khó; hướng phát triển.
 
@@ -445,12 +426,12 @@ Gợi ý điểm mới: ảnh và mô tả giúp người già phân biệt thu�
 | Người | Chức năng cá nhân trong báo cáo | Giai đoạn chính |
 |---|---|---|
 | A | Báo thức, giọng đọc, trải nghiệm người già | 1, 2, 5, 7 |
-| B | Tài khoản, nhóm gia đình, phân quyền, chat, thông báo | 1, 3, 4, 6, 9, 10 |
+| B | Tài khoản, nhóm gia đình, phân quyền, thông báo | 1, 3, 4, 6, 9, 10 |
 | C | Quét OCR, AI, ảnh và mô tả thuốc, kiểm thử | 4, 8, 12 |
 
 **Nếu thiếu thời gian, cắt theo thứ tự:** iPhone; admin nâng cao; lịch tháng; mô hình AI (giữ bản nền); xác nhận bằng giọng nói; lịch tập.
 
-**Không được cắt:** báo thức đáng tin cậy, đọc liên tục đến khi xác nhận, ảnh và mô tả thuốc, hỏi vấn đề và báo cho con, nhóm và phân quyền, **chat nhóm** (nhóm đã thống nhất đưa vào), bước duyệt của OCR, chạy được qua đường hầm để demo.
+**Không được cắt:** báo thức đáng tin cậy, đọc liên tục đến khi xác nhận, ảnh và mô tả thuốc, hỏi vấn đề và báo cho con, nhóm và phân quyền, bước duyệt của OCR, chạy được qua đường hầm để demo.
 
 ## 15. Mẫu báo cáo khi kết thúc giai đoạn
 

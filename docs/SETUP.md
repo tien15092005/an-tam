@@ -150,7 +150,7 @@ Không bắt buộc: thiếu Firebase thì app vẫn chạy, chỉ là người 
    flutter build apk --dart-define=FIREBASE_API_KEY=... --dart-define=FIREBASE_APP_ID=... --dart-define=FIREBASE_SENDER_ID=... --dart-define=FIREBASE_PROJECT_ID=...
    ```
 
-4. Giữ các giá trị này ở chỗ riêng, không gửi vào chat và không đưa lên Git. Kiểm tra: `docker compose logs backend | findstr FCM` phải thấy "FCM pushes enabled".
+4. Giữ các giá trị này ở chỗ riêng, không gửi qua tin nhắn và không đưa lên Git. Kiểm tra: `docker compose logs backend | findstr FCM` phải thấy "FCM pushes enabled".
 5. Vào **Project settings → Users and permissions**, thêm email của 2 bạn với vai trò **Editor** nếu cần.
 
 ## Tài khoản quản trị (admin)

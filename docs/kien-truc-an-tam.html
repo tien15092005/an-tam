@@ -1,0 +1,427 @@
+<title>Bản đồ An Tâm</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&family=Lexend:wght@500;600;700&family=Roboto+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column; a wide map that scrolls sideways on phones; cards in an auto-fit grid */
+:root {
+  --bg: #eef3f3;
+  --surface: #ffffff;
+  --ink: #15303a;
+  --muted: #557079;
+  --line: #c9d7da;
+  --care: #1b7f6b;      /* phones, the family side */
+  --care-soft: #dcefea;
+  --office: #2d4f8a;    /* the laptop, Docker rooms */
+  --office-soft: #e1e8f5;
+  --outside: #b7791f;   /* services on the internet */
+  --outside-soft: #f6ead3;
+  --hl: #e0573d;        /* the highlighted step */
+  --f-display: "Lexend", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Be Vietnam Pro", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "Roboto Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1c21; --surface: #16272e; --ink: #e3eef0; --muted: #93aab1; --line: #2b4149;
+    --care: #4cc3a6; --care-soft: #173a34; --office: #86a8e6; --office-soft: #1c2a42;
+    --outside: #e3aa52; --outside-soft: #3a2e18; --hl: #ff7a5f; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1c21; --surface: #16272e; --ink: #e3eef0; --muted: #93aab1; --line: #2b4149;
+  --care: #4cc3a6; --care-soft: #173a34; --office: #86a8e6; --office-soft: #1c2a42;
+  --outside: #e3aa52; --outside-soft: #3a2e18; --hl: #ff7a5f; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 16px; line-height: 1.65;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 64px;
+}
+.wrap { max-width: 1000px; margin: 0 auto; display: flex; flex-direction: column; gap: 56px; }
+h1, h2, h3 { font-family: var(--f-display); line-height: 1.25; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(2rem, 5vw, 3rem); font-weight: 700; }
+h2 { font-size: 1.6rem; font-weight: 600; }
+h3 { font-size: 1.12rem; font-weight: 600; }
+p { margin: 0; }
+.prose { max-width: 68ch; display: flex; flex-direction: column; gap: 12px; }
+.lead { font-size: 1.15rem; color: var(--muted); }
+.eyebrow { font-family: var(--f-mono); font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+code, .mono { font-family: var(--f-mono); font-size: .88em; background: var(--office-soft); padding: 1px 6px; border-radius: 4px; overflow-wrap: anywhere; }
+section { display: flex; flex-direction: column; gap: 20px; }
+
+header.hero { padding-top: 48px; display: flex; flex-direction: column; gap: 16px; }
+.legend { display: flex; flex-wrap: wrap; gap: 10px 20px; font-size: .92rem; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 8px; }
+.dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+
+/* map */
+.map-box { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow-x: auto; }
+.map-box svg { display: block; min-width: 760px; width: 100%; height: auto; }
+svg text { font-family: var(--f-body); fill: var(--ink); }
+svg .t-title { font-family: var(--f-display); font-weight: 600; font-size: 17px; }
+svg .t-sub { font-size: 13px; fill: var(--muted); }
+svg .t-tag { font-family: var(--f-mono); font-size: 11px; letter-spacing: .06em; fill: var(--muted); }
+.n rect { stroke-width: 2; transition: stroke .25s, stroke-width .25s; }
+.n.care rect { fill: var(--care-soft); stroke: var(--care); }
+.n.office rect { fill: var(--office-soft); stroke: var(--office); }
+.n.outside rect { fill: var(--outside-soft); stroke: var(--outside); }
+.n.ghost rect { fill: none; stroke: var(--line); stroke-dasharray: 6 5; }
+.n.ghost text { fill: var(--muted); }
+.zone { fill: none; stroke: var(--line); stroke-width: 2; stroke-dasharray: 8 6; }
+.a { fill: none; stroke: var(--muted); stroke-width: 2; opacity: .55; transition: stroke .25s, opacity .25s, stroke-width .25s; }
+.n.on rect { stroke: var(--hl); stroke-width: 4; }
+.a.on { stroke: var(--hl); stroke-width: 3.5; opacity: 1; stroke-dasharray: 9 6; animation: flow 1s linear infinite; }
+@keyframes flow { to { stroke-dashoffset: -30; } }
+@media (prefers-reduced-motion: reduce) { .a.on { animation: none; } }
+.arrowhead { fill: var(--muted); }
+
+/* journey */
+.journey { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+button {
+  font: 600 .95rem var(--f-body); color: var(--ink); background: var(--surface); border: 1.5px solid var(--line);
+  border-radius: 999px; padding: 8px 16px; cursor: pointer;
+}
+button:hover { border-color: var(--office); }
+button:focus-visible { outline: 3px solid var(--hl); outline-offset: 2px; }
+button.primary { background: var(--office); border-color: var(--office); color: var(--surface); }
+.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; counter-reset: s; }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 12px; padding: 10px 12px; border-radius: 10px; cursor: pointer; border: 1.5px solid transparent; }
+.steps li::before { content: counter(s); font-family: var(--f-display); font-weight: 600; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--office-soft); color: var(--office); }
+.steps li.on { border-color: var(--hl); background: var(--surface); }
+.steps li.on::before { background: var(--hl); color: var(--surface); }
+.steps b { font-weight: 600; }
+.steps small { display: block; color: var(--muted); font-size: .9rem; }
+
+/* cards */
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.card .kind { display: flex; align-items: center; gap: 8px; }
+.card .tech { font-family: var(--f-mono); font-size: .8rem; color: var(--muted); }
+.card .like { border-left: 3px solid var(--line); padding-left: 12px; color: var(--muted); font-style: italic; }
+.card.care .like { border-color: var(--care); }
+.card.office .like { border-color: var(--office); }
+.card.outside .like { border-color: var(--outside); }
+.card dl { margin: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; font-size: .92rem; }
+.card dt { color: var(--muted); }
+.card dd { margin: 0; }
+
+/* tunnel comparison */
+.compare { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.panel svg { width: 100%; height: auto; display: block; }
+.badge { font: 600 .78rem var(--f-mono); letter-spacing: .05em; padding: 3px 10px; border-radius: 999px; align-self: flex-start; }
+.badge.bad { background: var(--outside-soft); color: var(--outside); }
+.badge.good { background: var(--care-soft); color: var(--care); }
+
+/* table */
+.table-box { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+table { border-collapse: collapse; width: 100%; min-width: 620px; font-size: .94rem; }
+th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-family: var(--f-mono); font-size: .76rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+tr:last-child td { border-bottom: 0; }
+
+.glossary { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px 24px; }
+.glossary div { display: flex; flex-direction: column; gap: 2px; }
+.glossary dt { font-family: var(--f-mono); font-weight: 500; }
+.glossary dd { margin: 0; color: var(--muted); font-size: .94rem; }
+.note { background: var(--care-soft); border-radius: 12px; padding: 16px 20px; max-width: 68ch; }
+</style>
+
+<div class="wrap">
+
+<header class="hero">
+  <span class="eyebrow">Dự án An Tâm · bản đồ cho người không làm kỹ thuật</span>
+  <h1>Bên trong An Tâm có những gì?</h1>
+  <p class="lead prose">Hãy hình dung một gia đình có một <b>văn phòng nhỏ</b> đặt ngay trên laptop của bạn. Điện thoại của các con và của bố mẹ gửi việc đến văn phòng. Văn phòng ghi chép, nhờ chuyên gia đọc toa thuốc, rồi báo lại cho mọi người. Riêng máy của bố mẹ có cuốn sổ tay và đồng hồ báo thức riêng, nên mất mạng vẫn nhắc đúng giờ.</p>
+  <div class="legend">
+    <span><i class="dot" style="background:var(--care)"></i>Phía gia đình (điện thoại)</span>
+    <span><i class="dot" style="background:var(--office)"></i>Văn phòng trên laptop</span>
+    <span><i class="dot" style="background:var(--outside)"></i>Dịch vụ thuê ngoài trên Internet</span>
+  </div>
+</header>
+
+<section aria-labelledby="map-h">
+  <h2 id="map-h">Bản đồ tổng thể</h2>
+  <p class="prose">Mỗi ô là một thành phần, mỗi mũi tên là một đường đi của dữ liệu. Bấm từng bước bên dưới để xem một liều thuốc đi qua những đâu.</p>
+
+  <div class="map-box">
+  <svg id="map" viewBox="0 0 960 560" role="img" aria-label="Sơ đồ: hai điện thoại nối qua Cloudflare tới laptop, trong laptop có Docker chứa backend, database, AI và kho ảnh; Google FCM gửi thông báo tới điện thoại">
+    <defs>
+      <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead" d="M0,0 L10,5 L0,10 z"/></marker>
+    </defs>
+
+    <!-- zones -->
+    <rect class="zone" x="575" y="18" width="370" height="524" rx="18"/>
+    <text class="t-tag" x="595" y="44">LAPTOP CỦA BẠN</text>
+    <rect class="zone" x="598" y="62" width="324" height="340" rx="14"/>
+    <text class="t-tag" x="615" y="86">DOCKER · 3 “PHÒNG” ĐÓNG GÓI SẴN</text>
+    <text class="t-tag" x="40" y="44">TRONG TAY GIA ĐÌNH</text>
+    <text class="t-tag" x="350" y="230">INTERNET</text>
+
+    <!-- arrows -->
+    <path class="a" id="a-child-tun" d="M232,140 C290,150 300,265 348,282" marker-end="url(#ah)"/>
+    <path class="a" id="a-elder-tun" d="M232,395 C290,385 300,320 348,312" marker-end="url(#ah)"/>
+    <path class="a" id="a-tun-be" d="M532,296 C575,290 580,160 618,150" marker-end="url(#ah)"/>
+    <path class="a" id="a-be-db" d="M685,192 L685,232" marker-end="url(#ah)"/>
+    <path class="a" id="a-be-ai" d="M835,192 L835,232" marker-end="url(#ah)"/>
+    <path class="a" id="a-be-media" d="M760,192 L760,322" marker-end="url(#ah)"/>
+    <path class="a" id="a-be-fcm" d="M618,128 C585,110 570,80 534,76" marker-end="url(#ah)"/>
+    <path class="a" id="a-fcm-child" d="M348,72 C300,70 270,95 234,105" marker-end="url(#ah)"/>
+    <path class="a" id="a-fcm-elder" d="M380,112 C360,200 300,330 234,352" marker-end="url(#ah)"/>
+
+    <!-- nodes -->
+    <g class="n care" id="n-child">
+      <rect x="40" y="60" width="192" height="150" rx="16"/>
+      <text class="t-title" x="58" y="92">Điện thoại các con</text>
+      <text class="t-sub" x="58" y="116">Android hoặc iPhone</text>
+      <text class="t-sub" x="58" y="140">Thêm thuốc, quét toa,</text>
+      <text class="t-sub" x="58" y="160">xem bố mẹ uống chưa,</text>
+      <text class="t-sub" x="58" y="180">nhận cảnh báo</text>
+    </g>
+    <g class="n care" id="n-elder">
+      <rect x="40" y="320" width="192" height="210" rx="16"/>
+      <text class="t-title" x="58" y="352">Điện thoại bố mẹ</text>
+      <text class="t-sub" x="58" y="376">Bắt buộc Android</text>
+      <text class="t-sub" x="58" y="400">Đổ chuông, đọc tên thuốc,</text>
+      <text class="t-sub" x="58" y="420">hỏi “có vấn đề gì không”</text>
+    </g>
+    <g class="n care" id="n-local">
+      <rect x="56" y="438" width="160" height="76" rx="10"/>
+      <text class="t-title" x="70" y="466" style="font-size:15px">Sổ tay + chuông</text>
+      <text class="t-sub" x="70" y="488">lưu lịch ngay trong máy,</text>
+      <text class="t-sub" x="70" y="505">mất mạng vẫn kêu</text>
+    </g>
+    <g class="n outside" id="n-fcm">
+      <rect x="350" y="36" width="182" height="76" rx="12"/>
+      <text class="t-title" x="366" y="66">Google FCM</text>
+      <text class="t-sub" x="366" y="90">người đưa tin gõ cửa máy</text>
+    </g>
+    <g class="n outside" id="n-tun">
+      <rect x="350" y="248" width="182" height="96" rx="12"/>
+      <text class="t-title" x="366" y="278">Cloudflare</text>
+      <text class="t-sub" x="366" y="302">đường hầm HTTPS:</text>
+      <text class="t-sub" x="366" y="322">cho laptop một địa chỉ</text>
+      <text class="t-sub" x="366" y="338">công khai, có khóa</text>
+    </g>
+    <g class="n office" id="n-be">
+      <rect x="620" y="106" width="282" height="86" rx="12"/>
+      <text class="t-title" x="638" y="136">Backend · lễ tân + điều phối</text>
+      <text class="t-sub" x="638" y="160">kiểm tra vé, nhận việc, ghi sổ,</text>
+      <text class="t-sub" x="638" y="178">báo tin cho mọi người</text>
+    </g>
+    <g class="n office" id="n-db">
+      <rect x="620" y="234" width="130" height="80" rx="12"/>
+      <text class="t-title" x="636" y="264">Database</text>
+      <text class="t-sub" x="636" y="288">tủ hồ sơ</text>
+    </g>
+    <g class="n office" id="n-ai">
+      <rect x="772" y="234" width="130" height="80" rx="12"/>
+      <text class="t-title" x="788" y="264">AI service</text>
+      <text class="t-sub" x="788" y="288">đọc hiểu toa</text>
+    </g>
+    <g class="n office" id="n-media">
+      <rect x="620" y="324" width="282" height="62" rx="12"/>
+      <text class="t-title" x="638" y="352">Kho ảnh viên thuốc</text>
+      <text class="t-sub" x="638" y="372">ảnh chụp từng loại thuốc</text>
+    </g>
+    <g class="n ghost" id="n-emu">
+      <rect x="600" y="430" width="322" height="92" rx="12"/>
+      <text class="t-title" x="618" y="460">Máy ảo Android</text>
+      <text class="t-sub" x="618" y="484">điện thoại giả để thử app trên laptop.</text>
+      <text class="t-sub" x="618" y="504">Bạn có máy thật nên đã xóa.</text>
+    </g>
+  </svg>
+  </div>
+
+  <div class="journey">
+    <div class="controls">
+      <button id="prev" type="button">← Bước trước</button>
+      <button id="next" type="button" class="primary">Bước tiếp →</button>
+      <button id="reset" type="button">Bỏ tô sáng</button>
+    </div>
+    <ol class="steps" id="steps">
+      <li data-on="n-child"><div><b>Con thêm thuốc cho bố mẹ.</b><small>Nhập tay, hoặc chụp toa thuốc. Chữ trên ảnh được đọc ngay trong điện thoại (Google ML Kit), chưa cần mạng.</small></div></li>
+      <li data-on="n-child a-child-tun n-tun a-tun-be n-be"><div><b>Gửi lên văn phòng qua đường hầm.</b><small>Điện thoại gửi chữ vừa đọc tới Cloudflare, Cloudflare chuyển vào backend trên laptop. Kèm theo là “vé ra vào” (JWT) để backend biết ai đang gửi.</small></div></li>
+      <li data-on="n-be a-be-ai n-ai"><div><b>Backend nhờ AI tách thông tin.</b><small>AI service đọc đoạn chữ lộn xộn, tách ra tên thuốc, liều, số lần mỗi ngày. Chỉ backend mới gọi được AI, điện thoại không gọi thẳng.</small></div></li>
+      <li data-on="n-be a-be-db n-db a-be-media n-media"><div><b>Ghi vào tủ hồ sơ.</b><small>Lịch uống thuốc vào Database (PostgreSQL), ảnh viên thuốc vào kho ảnh.</small></div></li>
+      <li data-on="n-be a-be-fcm n-fcm a-fcm-elder n-elder n-local"><div><b>Báo cho máy bố mẹ.</b><small>Backend nhờ Google FCM “gõ cửa” điện thoại bố mẹ. Máy tự tải lịch mới về và chép vào sổ tay trong máy (SQLite), rồi tự đặt chuông.</small></div></li>
+      <li data-on="n-local n-elder"><div><b>Đến giờ, chuông kêu.</b><small>Chuông chạy hoàn toàn trong điện thoại bố mẹ, nên mất mạng, khởi động lại máy hay laptop tắt vẫn kêu. Máy hiện ảnh viên thuốc và đọc tên bằng giọng tiếng Việt.</small></div></li>
+      <li data-on="n-elder a-elder-tun n-tun a-tun-be n-be a-be-db n-db a-be-fcm n-fcm a-fcm-child n-child"><div><b>Bố mẹ xác nhận, các con biết ngay.</b><small>Kết quả “đã uống / có vấn đề” đi ngược lên backend. Các con thấy ở tab Hôm nay, và nhận cảnh báo nếu bố mẹ bỏ lỡ.</small></div></li>
+    </ol>
+  </div>
+</section>
+
+<section aria-labelledby="parts-h">
+  <h2 id="parts-h">Từng thành phần làm gì</h2>
+  <div class="cards">
+    <article class="card care">
+      <div class="kind"><i class="dot" style="background:var(--care)"></i><h3>App trên điện thoại</h3></div>
+      <span class="tech">app/ · Flutter (ngôn ngữ Dart), phần chuông viết bằng Java</span>
+      <p class="like">Như chiếc điều khiển kiêm đồng hồ báo thức trong tay mỗi người.</p>
+      <p>Một app duy nhất, lúc mở chọn vai: <b>người con</b>, <b>bố / mẹ</b>, hoặc <b>quản trị</b>. Flutter cho phép viết một lần chạy được cả Android lẫn iPhone.</p>
+    </article>
+    <article class="card care">
+      <div class="kind"><i class="dot" style="background:var(--care)"></i><h3>Sổ tay + chuông trong máy bố mẹ</h3></div>
+      <span class="tech">SQLite (thư viện drift) + báo thức Android</span>
+      <p class="like">Như tờ lịch dán tủ lạnh và chiếc đồng hồ báo thức đầu giường.</p>
+      <p>Đây là lý do app nhắc đúng giờ cả khi mất mạng: lịch đã được chép sẵn vào máy, chuông là của chính điện thoại. Mạng chỉ cần để cập nhật lịch mới và gửi kết quả lên.</p>
+    </article>
+    <article class="card office">
+      <div class="kind"><i class="dot" style="background:var(--office)"></i><h3>Backend</h3></div>
+      <span class="tech">backend/ · Java 25, Spring Boot · cổng 8080</span>
+      <p class="like">Lễ tân kiêm người điều phối của văn phòng.</p>
+      <p>Mọi yêu cầu từ điện thoại đều qua đây: đăng ký, đăng nhập, nhóm gia đình, thuốc, lịch, báo cáo uống thuốc, cảnh báo. Nó kiểm tra “vé” của người gửi, quyết định ai được xem gì, rồi ghi vào database.</p>
+      <dl><dt>Thư</dt><dd>REST: mỗi yêu cầu là một lá thư, gửi xong là xong.</dd></dl>
+    </article>
+    <article class="card office">
+      <div class="kind"><i class="dot" style="background:var(--office)"></i><h3>Database</h3></div>
+      <span class="tech">PostgreSQL 18 · Flyway quản lý cấu trúc bảng</span>
+      <p class="like">Tủ hồ sơ có ngăn kéo dán nhãn: người dùng, nhóm, thuốc, lịch, lần uống.</p>
+      <p>Chỉ backend mở tủ. Dữ liệu nằm trong một “ổ cứng ảo” của Docker trên laptop, tắt máy không mất. Vì đây là máy mới nên tủ đang gần trống, chỉ có dữ liệu demo.</p>
+    </article>
+    <article class="card office">
+      <div class="kind"><i class="dot" style="background:var(--office)"></i><h3>AI service</h3></div>
+      <span class="tech">ai-service/ · Python 3, FastAPI</span>
+      <p class="like">Dược sĩ ngồi phòng trong, chỉ nhận giấy từ lễ tân.</p>
+      <p>Nhận đoạn chữ OCR đọc được từ toa thuốc, vỏ hộp, hóa đơn, rồi tách ra tên thuốc, liều, giờ uống để người con xem lại và sửa. Có mật khẩu riêng (<code>AI_SERVICE_TOKEN</code>) để chỉ backend gọi được.</p>
+    </article>
+    <article class="card office">
+      <div class="kind"><i class="dot" style="background:var(--office)"></i><h3>Docker</h3></div>
+      <span class="tech">docker-compose.yml · Docker Desktop</span>
+      <p class="like">Những thùng container đóng gói sẵn: mở ra là có ngay một căn phòng đủ đồ.</p>
+      <p>Thay vì tự cài PostgreSQL, Java, Python lên laptop, Docker chạy mỗi thứ trong một hộp riêng. Một lệnh <code>docker compose up</code> dựng cả ba phòng: database, backend, AI.</p>
+    </article>
+    <article class="card outside">
+      <div class="kind"><i class="dot" style="background:var(--outside)"></i><h3>Google FCM</h3></div>
+      <span class="tech">Firebase Cloud Messaging · tùy chọn</span>
+      <p class="like">Người đưa tin của Google, gõ cửa điện thoại kể cả khi app đang đóng.</p>
+      <p>Backend không tự gọi được vào điện thoại, nên nhờ Google báo “có tin mới”. Chưa cài FCM thì app vẫn chạy, chỉ là tự làm mới khi được mở.</p>
+    </article>
+    <article class="card outside">
+      <div class="kind"><i class="dot" style="background:var(--outside)"></i><h3>Cloudflare</h3></div>
+      <span class="tech">cloudflared · đường hầm HTTPS</span>
+      <p class="like">Hòm thư công cộng có khóa, nối thẳng về văn phòng trong nhà bạn.</p>
+      <p>Giúp điện thoại ở bất cứ đâu gọi được tới laptop. Xem giải thích kỹ ngay bên dưới.</p>
+    </article>
+  </div>
+</section>
+
+<section aria-labelledby="tunnel-h">
+  <h2 id="tunnel-h">Đường hầm HTTPS và Cloudflare</h2>
+  <div class="prose">
+    <p>Laptop của bạn nằm sau cục wifi ở nhà. Nó giống một căn phòng <b>trong ngõ không có số nhà</b>: bạn ra ngoài được, nhưng người ngoài không tìm được đường vào. Điện thoại bố mẹ dùng 4G thì không thể tự gọi vào laptop.</p>
+    <p><b>Cloudflare</b> là một công ty lớn có máy chủ khắp thế giới. Khi chạy chương trình <code>cloudflared</code>, laptop tự <b>chủ động</b> mở một đường ống từ trong nhà ra máy chủ của Cloudflare. Cloudflare đưa bạn một địa chỉ công khai dạng <code>https://xxxx.trycloudflare.com</code>. Ai gửi thư tới địa chỉ đó, Cloudflare chuyển theo đường ống về laptop.</p>
+    <p><b>HTTPS</b> nghĩa là thư được niêm phong. Người ngồi giữa (quán cà phê, nhà mạng) chỉ thấy phong bì, không đọc được bên trong. Bản app chính thức chỉ chấp nhận địa chỉ <code>https://</code>.</p>
+  </div>
+  <div class="compare">
+    <div class="panel">
+      <span class="badge bad">KHÔNG CÓ ĐƯỜNG HẦM</span>
+      <svg viewBox="0 0 360 140" role="img" aria-label="Điện thoại bị chặn ở cục wifi, không vào được laptop">
+        <rect x="10" y="40" width="80" height="60" rx="10" fill="var(--care-soft)" stroke="var(--care)" stroke-width="2"/>
+        <text x="50" y="75" text-anchor="middle" font-size="13">Điện thoại</text>
+        <rect x="170" y="20" width="16" height="100" rx="4" fill="var(--outside-soft)" stroke="var(--outside)" stroke-width="2"/>
+        <text x="178" y="136" text-anchor="middle" font-size="11" class="t-sub">cục wifi</text>
+        <rect x="260" y="40" width="90" height="60" rx="10" fill="var(--office-soft)" stroke="var(--office)" stroke-width="2"/>
+        <text x="305" y="75" text-anchor="middle" font-size="13">Laptop</text>
+        <path d="M92,70 L160,70" stroke="var(--outside)" stroke-width="2.5" fill="none" stroke-dasharray="6 4"/>
+        <path d="M150,58 L166,82 M166,58 L150,82" stroke="var(--hl)" stroke-width="3"/>
+      </svg>
+      <p>Điện thoại không biết laptop ở đâu, và cục wifi cũng không cho người lạ vào.</p>
+    </div>
+    <div class="panel">
+      <span class="badge good">CÓ ĐƯỜNG HẦM CLOUDFLARE</span>
+      <svg viewBox="0 0 360 140" role="img" aria-label="Laptop mở đường ống ra Cloudflare; điện thoại gửi tới Cloudflare và được chuyển về laptop">
+        <rect x="10" y="40" width="80" height="60" rx="10" fill="var(--care-soft)" stroke="var(--care)" stroke-width="2"/>
+        <text x="50" y="75" text-anchor="middle" font-size="13">Điện thoại</text>
+        <rect x="128" y="34" width="104" height="72" rx="10" fill="var(--outside-soft)" stroke="var(--outside)" stroke-width="2"/>
+        <text x="180" y="66" text-anchor="middle" font-size="13">Cloudflare</text>
+        <text x="180" y="86" text-anchor="middle" font-size="10" class="t-sub">xxxx.trycloudflare</text>
+        <rect x="270" y="40" width="80" height="60" rx="10" fill="var(--office-soft)" stroke="var(--office)" stroke-width="2"/>
+        <text x="310" y="75" text-anchor="middle" font-size="13">Laptop</text>
+        <path d="M92,70 L124,70" stroke="var(--care)" stroke-width="2.5" fill="none" marker-end="url(#ah)"/>
+        <rect x="234" y="62" width="34" height="16" rx="8" fill="none" stroke="var(--care)" stroke-width="2.5"/>
+        <text x="180" y="128" text-anchor="middle" font-size="11" class="t-sub">laptop tự mở ống ra ngoài · thư có khóa HTTPS</text>
+      </svg>
+      <p>Mọi điện thoại, ở bất cứ đâu, chỉ cần nhớ một địa chỉ <code>https://</code>.</p>
+    </div>
+  </div>
+  <div class="note prose">
+    <p><b>Ba điều cần nhớ.</b> Địa chỉ miễn phí <code>trycloudflare.com</code> <b>đổi mỗi lần</b> chạy lại lệnh, nên phải dán lại vào app (mục Cài đặt máy chủ). Laptop phải bật và đường hầm phải đang chạy thì các con mới xem được báo cáo. Riêng chuông nhắc của bố mẹ không phụ thuộc vào đường hầm. Khi không dùng thì tắt đường hầm đi.</p>
+  </div>
+</section>
+
+<section aria-labelledby="emu-h">
+  <h2 id="emu-h">Máy ảo là gì, có cần không?</h2>
+  <div class="prose">
+    <p><b>Máy ảo Android</b> (emulator) là một chiếc điện thoại giả chạy trong cửa sổ trên laptop, đi kèm Android Studio. Lập trình viên dùng nó để thử app khi chưa có điện thoại thật bên cạnh. Từ trong máy ảo, địa chỉ đặc biệt <code>10.0.2.2:8080</code> nghĩa là “laptop đang chứa tôi”. Vì vậy app mặc định trỏ về địa chỉ này.</p>
+    <p>Bạn có điện thoại Android thật nên không cần máy ảo. Mình đã xóa nó, giải phóng 2,65 GB. Với máy thật, có hai cách nối tới laptop: <b>cắm cáp USB</b> (dùng khi cài bản app mới), hoặc <b>đường hầm Cloudflare</b> (dùng hằng ngày, không cần cáp).</p>
+  </div>
+</section>
+
+<section aria-labelledby="where-h">
+  <h2 id="where-h">Trên laptop này, mọi thứ nằm ở đâu</h2>
+  <div class="table-box">
+  <table>
+    <thead><tr><th>Thứ</th><th>Vị trí</th><th>Để làm gì</th></tr></thead>
+    <tbody>
+      <tr><td>Mã nguồn dự án</td><td class="mono">Desktop\an-tam</td><td>Bản sao từ GitHub. Sửa code ở đây rồi đẩy lên GitHub.</td></tr>
+      <tr><td>Chìa khóa bí mật</td><td class="mono">an-tam\.env</td><td>Mật khẩu database, khóa ký đăng nhập. Không đưa lên GitHub. Mất file này thì phải tạo khóa mới.</td></tr>
+      <tr><td>Tài khoản demo</td><td class="mono">an-tam\secrets\demo-logins.txt</td><td>Hai tài khoản người con giả và mã ghép máy (hết hạn sau 15 phút).</td></tr>
+      <tr><td>Flutter</td><td class="mono">C:\dev\flutter</td><td>Bộ công cụ để build app điện thoại.</td></tr>
+      <tr><td>Java 25</td><td class="mono">C:\dev\jdk-25.0.5+8</td><td>Chạy bài kiểm thử backend. Bản chạy thật đã có Java sẵn trong Docker.</td></tr>
+      <tr><td>Android SDK</td><td class="mono">AppData\Local\Android\Sdk</td><td>Công cụ để cài app lên điện thoại qua cáp USB.</td></tr>
+      <tr><td>Database, backend, AI</td><td>Trong Docker Desktop</td><td>Ba “phòng” đang chạy. Kiểm tra ở <code>localhost:8080/api/health</code>.</td></tr>
+      <tr><td>Bản mẫu cũ</td><td class="mono">mobile\ public\ server.py</td><td>Phiên bản thử nghiệm đầu tiên (Expo + Python). Không còn dùng, giữ lại để tham khảo.</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section aria-labelledby="words-h">
+  <h2 id="words-h">Những từ hay gặp</h2>
+  <dl class="glossary">
+    <div><dt>localhost</dt><dd>“Chính cái máy này”. Chỉ máy đó tự gọi được, máy khác thì không.</dd></div>
+    <div><dt>cổng 8080</dt><dd>Số phòng của backend trong máy. Một máy có nhiều cổng, mỗi chương trình ngồi một cổng.</dd></div>
+    <div><dt>API</dt><dd>Danh sách các yêu cầu backend nhận, kiểu “đăng nhập”, “thêm thuốc”, “báo đã uống”.</dd></div>
+    <div><dt>JWT</dt><dd>Vé ra vào có chữ ký, nhận được sau khi đăng nhập. Mỗi yêu cầu đều trình vé.</dd></div>
+    <div><dt>Mã ghép máy</dt><dd>6 số người con tạo ra để máy bố mẹ vào đúng nhóm mà không cần mật khẩu.</dd></div>
+    <div><dt>OCR</dt><dd>Đọc chữ từ ảnh chụp. Chạy ngay trên điện thoại, rồi AI mới tách ý nghĩa.</dd></div>
+    <div><dt>Git / GitHub</dt><dd>Git ghi lại lịch sử từng lần sửa code. GitHub là nơi cất bản sao trên mạng, nhờ đó bạn kéo được dự án về máy này.</dd></div>
+    <div><dt>APK</dt><dd>File cài app trên Android, giống file .exe trên Windows.</dd></div>
+  </dl>
+</section>
+
+</div>
+
+<script>
+(function () {
+  var steps = Array.prototype.slice.call(document.querySelectorAll('#steps li'));
+  var map = document.getElementById('map');
+  var cur = -1;
+  function show(i) {
+    map.querySelectorAll('.on').forEach(function (el) { el.classList.remove('on'); });
+    steps.forEach(function (li) { li.classList.remove('on'); });
+    cur = i;
+    if (i < 0) return;
+    var li = steps[i];
+    li.classList.add('on');
+    li.getAttribute('data-on').split(' ').forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.classList.add('on');
+    });
+  }
+  document.getElementById('next').addEventListener('click', function () { show((cur + 1) % steps.length); });
+  document.getElementById('prev').addEventListener('click', function () { show(cur <= 0 ? steps.length - 1 : cur - 1); });
+  document.getElementById('reset').addEventListener('click', function () { show(-1); });
+  steps.forEach(function (li, i) {
+    li.tabIndex = 0;
+    li.addEventListener('click', function () { show(i); });
+    li.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); show(i); } });
+  });
+  show(0);
+})();
+</script>

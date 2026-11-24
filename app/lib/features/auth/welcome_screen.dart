@@ -21,7 +21,7 @@ class WelcomeScreen extends StatelessWidget {
               height: 76,
               alignment: Alignment.center,
               decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(AppRadius.lg)),
-              child: const Icon(Icons.favorite, color: Colors.white, size: 40),
+              child: Icon(Icons.favorite, color: AppColors.onAccent, size: 40),
             ),
             const SizedBox(height: AppSpacing.md),
             Text('An Tâm', style: text.headlineMedium),

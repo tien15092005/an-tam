@@ -8,7 +8,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.Map;
-import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,8 +47,6 @@ class AccountDeletionTest extends IntegrationTest {
                 "{\"callName\":\"Bà Lan\",\"phone\":\"0911111111\"}")).andReturn()), "$.userId");
         mvc.perform(json(as(owner, post("/api/groups/" + groupId + "/elders/" + elderId + "/medications")),
                 "{\"name\":\"Amlodipin\",\"times\":[\"08:00\"]}")).andExpect(status().isCreated());
-        mvc.perform(json(as(owner, post("/api/groups/" + groupId + "/chat/messages")),
-                "{\"clientMessageId\":\"" + UUID.randomUUID() + "\",\"body\":\"ghi chú riêng\"}")).andExpect(status().isOk());
 
         mvc.perform(as(owner, delete("/api/me?confirm=true"))).andExpect(status().isNoContent());
 
@@ -61,8 +58,6 @@ class AccountDeletionTest extends IntegrationTest {
         assertThat(elder.get("phone")).isNull();
         assertThat(elder.get("call_name")).isEqualTo("Người dùng đã xóa");
         assertThat(jdbc.queryForObject("SELECT count(*) FROM medications WHERE group_id = ? AND active", Integer.class, groupId)).isZero();
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM chat_messages WHERE group_id = ? AND deleted_at IS NULL",
-                Integer.class, groupId)).isZero();
         mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
                 .content("{\"email\":\"" + email + "\",\"password\":\"matkhau123\"}")).andExpect(status().isUnauthorized());
         // The email is free for a new account.

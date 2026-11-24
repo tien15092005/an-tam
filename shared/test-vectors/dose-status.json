@@ -1,13 +1,13 @@
 {
   "description": "Status of one scheduled dose (SKILL_AN_TAM.md §7). Times are the elder's local time. Used by backend (Java) and app (Dart) tests: both must return 'expected' for every case.",
-  "graceMinutes": 60,
+  "graceMinutes": 30,
   "cases": [
     { "name": "before the dose time", "due": "2026-11-09T08:00", "now": "2026-11-09T07:59", "createdAt": "2026-11-01T10:00", "log": null, "expected": "UPCOMING" },
     { "name": "exactly at the dose time", "due": "2026-11-09T08:00", "now": "2026-11-09T08:00", "createdAt": "2026-11-01T10:00", "log": null, "expected": "DUE" },
-    { "name": "minute 60 is still due", "due": "2026-11-09T08:00", "now": "2026-11-09T09:00", "createdAt": "2026-11-01T10:00", "log": null, "expected": "DUE" },
-    { "name": "minute 61 is missed", "due": "2026-11-09T08:00", "now": "2026-11-09T09:01", "createdAt": "2026-11-01T10:00", "log": null, "expected": "MISSED" },
-    { "name": "late evening dose seen after midnight is still due", "due": "2026-11-09T23:30", "now": "2026-11-10T00:20", "createdAt": "2026-11-01T10:00", "log": null, "expected": "DUE" },
-    { "name": "late evening dose missed after midnight", "due": "2026-11-09T23:30", "now": "2026-11-10T00:31", "createdAt": "2026-11-01T10:00", "log": null, "expected": "MISSED" },
+    { "name": "minute 30 is still due", "due": "2026-11-09T08:00", "now": "2026-11-09T08:30", "createdAt": "2026-11-01T10:00", "log": null, "expected": "DUE" },
+    { "name": "minute 31 is missed", "due": "2026-11-09T08:00", "now": "2026-11-09T08:31", "createdAt": "2026-11-01T10:00", "log": null, "expected": "MISSED" },
+    { "name": "late evening dose seen after midnight is still due", "due": "2026-11-09T23:45", "now": "2026-11-10T00:15", "createdAt": "2026-11-01T10:00", "log": null, "expected": "DUE" },
+    { "name": "late evening dose missed after midnight", "due": "2026-11-09T23:45", "now": "2026-11-10T00:16", "createdAt": "2026-11-01T10:00", "log": null, "expected": "MISSED" },
     { "name": "a log wins over the clock: taken late", "due": "2026-11-09T08:00", "now": "2026-11-09T12:00", "createdAt": "2026-11-01T10:00", "log": "TAKEN", "expected": "TAKEN" },
     { "name": "a log wins over the clock: confirmed early", "due": "2026-11-09T08:00", "now": "2026-11-09T07:50", "createdAt": "2026-11-01T10:00", "log": "TAKEN", "expected": "TAKEN" },
     { "name": "explicitly not taken (lost medicine)", "due": "2026-11-09T08:00", "now": "2026-11-09T08:05", "createdAt": "2026-11-01T10:00", "log": "NOT_TAKEN", "expected": "NOT_TAKEN" },

@@ -199,11 +199,11 @@ class TodayTest extends IntegrationTest {
     }
 
     @Test
-    void anUnansweredDoseRaisesOneNotConfirmedAlertAfterSixtyMinutes() throws Exception {
-        // 08:59: only 59 minutes late, nothing yet.
-        assertThat(sweeper.sweep(at(yesterday, "08:59")).stream().filter(this::mine).toList()).isEmpty();
-        // 09:01: one alert for the 08:00 alarm (both medicines), told to every caregiver once.
-        List<Long> first = sweeper.sweep(at(yesterday, "09:01")).stream().filter(this::mine).toList();
+    void anUnansweredDoseRaisesOneNotConfirmedAlertAfterThirtyMinutes() throws Exception {
+        // 08:30: the phone has rung 3 times (08:00, 08:10, 08:20) but it is only 30 minutes late, nothing yet.
+        assertThat(sweeper.sweep(at(yesterday, "08:30")).stream().filter(this::mine).toList()).isEmpty();
+        // 08:31: one alert for the 08:00 alarm (both medicines), told to every caregiver once.
+        List<Long> first = sweeper.sweep(at(yesterday, "08:31")).stream().filter(this::mine).toList();
         assertThat(first).hasSize(1);
         assertThat(sweeper.sweep(at(yesterday, "09:30")).stream().filter(this::mine).toList()).isEmpty();
         Map<String, Object> alert = jdbc.queryForMap("SELECT kind, medication_names, scheduled_time FROM alerts WHERE id = ?", first.getFirst());
@@ -214,11 +214,13 @@ class TodayTest extends IntegrationTest {
         assertThat(notifications(owner.id()).getFirst().get("title")).isEqualTo("Bà Lan chưa xác nhận uống thuốc");
         assertThat(notifications(elderId)).isEmpty();
 
-        // The elder's answer arrives late (phone was offline): the alert closes itself.
+        // The elder answers late from the home screen: the alert closes itself and the report says it came late.
         mvc.perform(json(as(elder, post("/api/me/dose-reports")),
                         elderReport(UUID.randomUUID(), yesterday, "08:00", "TAKEN", "NONE", null, amlodipin, metformin)))
                 .andExpect(status().isOk());
         assertThat(jdbc.queryForObject("SELECT resolved_by FROM alerts WHERE id = ?", Long.class, first.getFirst())).isEqualTo(elderId);
+        assertThat(jdbc.queryForList("SELECT body FROM notification_outbox WHERE user_id = ? AND kind = 'DOSE_REPORT'", String.class,
+                owner.id())).singleElement().asString().endsWith("· trả lời muộn");
     }
 
     @Test

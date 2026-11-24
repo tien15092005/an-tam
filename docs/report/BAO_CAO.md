@@ -7,7 +7,7 @@
 | STT | Họ tên | Phần việc chung | Phần việc cá nhân | % đóng góp |
 |---|---|---|---|---|
 | 1 | [NHÓM ĐIỀN] | [NHÓM ĐIỀN] | Báo thức, giọng đọc, trải nghiệm người già (mục 2.A) | [NHÓM ĐIỀN] |
-| 2 | [NHÓM ĐIỀN] | [NHÓM ĐIỀN] | Tài khoản, nhóm gia đình, phân quyền, chat, thông báo, admin (mục 2.B) | [NHÓM ĐIỀN] |
+| 2 | [NHÓM ĐIỀN] | [NHÓM ĐIỀN] | Tài khoản, nhóm gia đình, phân quyền, thông báo, admin (mục 2.B) | [NHÓM ĐIỀN] |
 | 3 | [NHÓM ĐIỀN] | [NHÓM ĐIỀN] | Quét OCR, AI, ảnh và mô tả thuốc, lịch, kiểm thử (mục 2.C) | [NHÓM ĐIỀN] |
 | | | | **Tổng** | **100%** |
 
@@ -30,18 +30,17 @@ Người cao tuổi thường dùng nhiều loại thuốc mỗi ngày, dễ qu�
 | Ảnh viên thuốc để phân biệt | | | Có |
 | Hỏi "có vấn đề gì không" sau khi uống | | | Có (mất, hết thuốc, không khỏe...) |
 | Nhiều người con cùng theo dõi, phân quyền | | | Có (nhóm gia đình, trưởng nhóm, thành viên) |
-| Chat gia đình | | | Có |
 | Nhập thuốc từ ảnh toa thuốc | | | Có, chữ đọc trên máy, bắt buộc duyệt |
 
 ## 1.2. Yêu cầu chức năng
 
 | Tác nhân | Chức năng |
 |---|---|
-| Người già | Nhận báo thức có ảnh và giọng đọc; xác nhận đã uống hoặc không uống được (nút hoặc giọng nói); hoãn 10 phút; trả lời "có vấn đề gì không"; báo "Tôi thấy không khỏe"; gọi cho con; xem thuốc hôm nay; nhận báo tập thể dục ("TÔI ĐI TẬP ĐÂY") |
+| Người già | Nhận báo thức có ảnh và giọng đọc; xác nhận đã uống hoặc không uống được (nút hoặc giọng nói); hoãn 10 phút (tối đa 3 lần báo); trả lời "có vấn đề gì không"; báo "Tôi thấy mệt"; trả lời muộn từ trang chính; gọi cho con; xem thuốc hôm nay; nhận báo tập thể dục ("TÔI ĐI TẬP ĐÂY") |
 | Trưởng nhóm | Mọi quyền của thành viên; thêm, sửa, xóa thuốc, ảnh, mô tả, lịch tập; Quét OCR; thêm hồ sơ bố mẹ, tạo mã ghép máy; mời, xóa thành viên; chuyển quyền |
-| Thành viên | Xem tab Hôm nay, lịch tuần/tháng, danh sách thuốc; nhận báo cáo và cảnh báo; xử lý cảnh báo; đánh dấu giúp "đã uống" và hoàn tác; chat; rời nhóm |
-| Admin hệ thống | Xem số liệu tổng hợp; tìm, khóa, mở khóa tài khoản (không xem được thuốc, ảnh, chat) |
-| Hệ thống (FCM, tác vụ nền) | Gửi thông báo đẩy; tạo cảnh báo "chưa xác nhận" sau 60 phút; dọn ảnh đã xóa |
+| Thành viên | Xem tab Hôm nay, lịch tuần/tháng, danh sách thuốc; nhận báo cáo và cảnh báo; xử lý cảnh báo; đánh dấu giúp "đã uống" và hoàn tác; rời nhóm |
+| Admin hệ thống | Xem số liệu tổng hợp; tìm, khóa, mở khóa tài khoản (không xem được thuốc, ảnh) |
+| Hệ thống (FCM, tác vụ nền) | Gửi thông báo đẩy; tạo cảnh báo "chưa xác nhận" sau 30 phút; dọn ảnh đã xóa |
 
 ## 1.3. Yêu cầu phi chức năng
 
@@ -66,7 +65,6 @@ flowchart LR
     U3[Gọi cho con]
     U4[Xem Hôm nay, lịch]
     U5[Đánh dấu giúp, xử lý cảnh báo]
-    U6[Chat nhóm]
     U7[Quản lý thuốc, ảnh, lịch tập]
     U8[Quét OCR và duyệt]
     U9[Quản lý nhóm, mời, ghép máy]
@@ -74,8 +72,8 @@ flowchart LR
     U11[Gửi thông báo đẩy]
   end
   E --- U1 & U2 & U3
-  M --- U4 & U5 & U6
-  O --- U4 & U5 & U6 & U7 & U8 & U9
+  M --- U4 & U5
+  O --- U4 & U5 & U7 & U8 & U9
   AD --- U10
   U11 --- F
 ```
@@ -86,7 +84,7 @@ flowchart LR
 |---|---|---|
 | App | Flutter 3.47 (Dart), Riverpod, go_router, dio, drift (SQLite) | Một mã nguồn, giao diện Material 3; SQLite giữ lịch và hàng đợi offline |
 | Báo thức | Java gốc qua platform channel: `AlarmManager.setAlarmClock`, foreground service, TTS trên luồng báo thức | Thử nghiệm ở Giai đoạn 2: tin cậy hơn các gói Flutter khi app bị tắt, sau khởi động lại, ở chế độ máy bay |
-| Backend | Java 25, Spring Boot 4, Spring Security (JWT), JPA, Flyway, WebSocket | Kiểu dữ liệu chặt, giao dịch, migration có kiểm soát |
+| Backend | Java 25, Spring Boot 4, Spring Security (JWT), JPA, Flyway | Kiểu dữ liệu chặt, giao dịch, migration có kiểm soát |
 | CSDL | PostgreSQL 18 | Ràng buộc `UNIQUE`, chỉ mục một phần (mỗi nhóm 1 trưởng nhóm, mỗi người già 1 nhóm) |
 | AI | Python 3.13, FastAPI | Tách thông tin từ chữ OCR; chỉ backend gọi bằng service token |
 | Hạ tầng | Docker Compose trên laptop + đường hầm HTTPS (cloudflared) | Không tốn phí máy chủ |
@@ -94,7 +92,6 @@ flowchart LR
 ```mermaid
 flowchart LR
   A[App Flutter] -->|HTTPS REST + JSON + JWT| B[Backend Spring Boot]
-  A <-->|WebSocket chat| B
   B --> C[(PostgreSQL)]
   B --> M[(Kho ảnh thuốc)]
   B -->|Mạng nội bộ + service token| D[AI service FastAPI]
@@ -104,13 +101,11 @@ flowchart LR
   F --> G[Báo thức cục bộ]
 ```
 
-**Chat và vấn đề tải, đồng bộ:** tin nhắn đi qua REST (lưu, chống trùng bằng `client_message_id`) rồi được đẩy qua WebSocket **sau khi giao dịch commit** tới mọi phiên đã đăng ký nhóm; server kiểm tra quyền ở mỗi lần đẩy. Mất kết nối thì app tự kết nối lại (chờ 1 → 30 giây) và tải lại trang mới nhất bằng REST, nên không mất tin. Lịch sử phân trang theo con trỏ (`before=id`). Độ trễ đo trong test: 80 ms.
-
 **Đồng bộ offline của máy người già:** lịch 7 ngày tới được tải về SQLite và đặt báo thức cục bộ; mọi câu trả lời được ghi ngay trên máy và vào hàng đợi, gửi lại đến khi server nhận (server bỏ qua bản trùng). Thông báo cho người con đi qua `notification_outbox` (ghi trong cùng giao dịch, khóa chống trùng), nên laptop tắt rồi bật vẫn gửi bù.
 
 ## 1.6. Lưu trữ và ERD
 
-- **PostgreSQL** (backend): tài khoản, nhóm, thuốc, lịch tập, nhật ký uống, cảnh báo, chat, hàng đợi thông báo, audit. Thời điểm lưu UTC; giờ uống là giờ địa phương theo múi giờ của người già.
+- **PostgreSQL** (backend): tài khoản, nhóm, thuốc, lịch tập, nhật ký uống, cảnh báo, hàng đợi thông báo, audit. Thời điểm lưu UTC; giờ uống là giờ địa phương theo múi giờ của người già.
 - **SQLite trên máy người già:** thuốc, ảnh (file), lịch tập, nhật ký uống trên máy, hàng đợi sự kiện chờ gửi.
 - **Kho ảnh:** thư mục trong Docker volume, ảnh được nén lại và xóa EXIF; chỉ tải qua API có kiểm tra quyền.
 
@@ -130,9 +125,6 @@ erDiagram
   EXERCISES ||--o{ EXERCISE_LOGS : ghi_nhan
   FAMILY_GROUPS ||--o{ ALERTS : co
   DOSE_LOGS ||--o{ ALERTS : phat_sinh
-  FAMILY_GROUPS ||--o{ CHAT_MESSAGES : co
-  ALERTS ||--o{ CHAT_MESSAGES : thong_bao
-  FAMILY_GROUPS ||--o{ CHAT_READ_STATES : co
   FAMILY_GROUPS ||--o{ AUDIT_LOGS : co
   USERS ||--o{ NOTIFICATION_OUTBOX : nhan
 ```
@@ -141,9 +133,9 @@ Migration: `backend/src/main/resources/db/migration/V1` → `V7`.
 
 ## 1.7. Nội dung mới, khó và hướng phát triển
 
-**Điểm mới:** ảnh và mô tả giúp người già phân biệt thuốc; báo liên tục kèm giọng đọc và hỏi lại vấn đề sau khi uống; nhóm gia đình phân quyền kiểu nhóm chat (một người con ở nhiều nhóm, mỗi người già một nhóm, mỗi nhóm một trưởng nhóm); người con đánh dấu giúp làm máy bố mẹ ngừng báo; OCR đọc trên máy, lọc thông tin cá nhân, không tự bịa liều và giờ.
+**Điểm mới:** ảnh và mô tả giúp người già phân biệt thuốc; báo liên tục kèm giọng đọc và hỏi lại vấn đề sau khi uống; nhóm gia đình có phân quyền (một người con ở nhiều nhóm, mỗi người già một nhóm, mỗi nhóm một trưởng nhóm); người con đánh dấu giúp làm máy bố mẹ ngừng báo; OCR đọc trên máy, lọc thông tin cá nhân, không tự bịa liều và giờ.
 
-**Điểm khó đã giải quyết:** báo thức tin cậy trên Android (Doze, khởi động lại, foreground service); đồng bộ offline không trùng; OCR tiếng Việt (lỗi đọc "50Omg" thành chữ O đã được xử lý); chat thời gian thực có kiểm tra quyền mỗi lần gửi; khóa tài khoản có hiệu lực ngay.
+**Điểm khó đã giải quyết:** báo thức tin cậy trên Android (Doze, khởi động lại, foreground service); đồng bộ offline không trùng; OCR tiếng Việt (lỗi đọc "50Omg" thành chữ O đã được xử lý); khóa tài khoản có hiệu lực ngay.
 
 **Hướng phát triển:** thử LLM/mô hình cho OCR khi nhóm đồng ý (bộ đánh giá đã sẵn); nghe giọng nói tự động giữa các lượt đọc; build và thử bản iPhone cho người con (máy người già cần Android, xem `docs/IPHONE.md`); nhiều múi giờ; thống kê tuân thủ theo tháng.
 
@@ -173,7 +165,7 @@ stateDiagram-v2
   Dung --> [*]
 ```
 
-**Ràng buộc nghiệp vụ:** chỉ dừng khi người già trả lời, hoãn, hoặc người con đánh dấu giúp; câu có "chưa"/"không" không bao giờ tính là đã uống; quá 60 phút chưa xác nhận thì báo người con là "chưa xác nhận" (không khẳng định đã quên); nhiều thuốc cùng giờ gộp một màn hình; bài tập cùng cơ chế với nút TÔI ĐI TẬP ĐÂY.
+**Ràng buộc nghiệp vụ:** mỗi lần báo tối đa 2 phút, tối đa 3 lần báo cách nhau 10 phút (kể cả lần hoãn), dừng sớm khi người già trả lời hoặc người con đánh dấu giúp; câu có "chưa"/"không" không bao giờ tính là đã uống; quá 30 phút chưa xác nhận thì báo người con là "chưa xác nhận" (không khẳng định đã quên); nhiều thuốc cùng giờ gộp một màn hình; bài tập cùng cơ chế với nút TÔI ĐI TẬP ĐÂY.
 
 **Giao diện:** trang chính chữ lớn (`docs/screenshots/phase5-elder-home.png`), màn hình báo nhiều thuốc (`phase5-alarm-multi.png`), câu hỏi vấn đề (`phase5-question.png`), báo tập (`phase7-exercise-alarm.png`), kiểm tra máy (`phase5-readiness.png`).
 
@@ -181,17 +173,17 @@ stateDiagram-v2
 
 **Điểm khó:** Android hủy báo thức khi bị "force stop"; Samsung tối ưu pin; giọng tiếng Việt có thể chưa cài (không đọc bằng giọng tiếng Anh).
 
-## 2.B. [NHÓM ĐIỀN tên] – Tài khoản, nhóm, phân quyền, chat, thông báo, admin
+## 2.B. [NHÓM ĐIỀN tên] – Tài khoản, nhóm, phân quyền, thông báo, admin
 
-**Chức năng:** đăng ký, đăng nhập, refresh token xoay vòng; nhóm, mời bằng mã, ghép máy người già bằng mã 6 số (15 phút, dùng 1 lần, giới hạn số lần thử); chuyển quyền, rời nhóm; tab Hôm nay, đánh dấu giúp; chat; thông báo đẩy qua outbox; admin.
+**Chức năng:** đăng ký, đăng nhập, refresh token xoay vòng; nhóm, mời bằng mã, ghép máy người già bằng mã 6 số (15 phút, dùng 1 lần, giới hạn số lần thử); chuyển quyền, rời nhóm; tab Hôm nay, đánh dấu giúp; thông báo đẩy qua outbox; admin.
 
-**Ràng buộc:** ma trận quyền mục 5 của kế hoạch, có test tích hợp cho từng ô (`GroupAuthorizationTest`, `CareTest`, `TodayTest`, `ChatTest`, `AdminTest`). Người ngoài nhóm nhận 404 để không dò được id nhóm.
+**Ràng buộc:** ma trận quyền mục 5 của kế hoạch, có test tích hợp cho từng ô (`GroupAuthorizationTest`, `CareTest`, `TodayTest`, `AdminTest`). Người ngoài nhóm nhận 404 để không dò được id nhóm.
 
-**Giao diện:** tab Hôm nay (`phase6-today.png`), chat (`phase9-chat.png`).
+**Giao diện:** tab Hôm nay (`phase6-today.png`).
 
-**Giải pháp kỹ thuật:** `backend/.../group`, `auth`, `care`, `chat`, `notification`, `admin`; `app/lib/features/caregiver`, `chat`, `admin`.
+**Giải pháp kỹ thuật:** `backend/.../group`, `auth`, `care`, `notification`, `admin`; `app/lib/features/caregiver`, `admin`.
 
-**Điểm khó:** chống trùng khi nhiều bản gửi đến cùng lúc (ràng buộc `UNIQUE` + thử lại); đẩy tin chat sau commit; khóa tài khoản có hiệu lực trước khi token hết hạn.
+**Điểm khó:** chống trùng khi nhiều bản gửi đến cùng lúc (ràng buộc `UNIQUE` + thử lại); khóa tài khoản có hiệu lực trước khi token hết hạn.
 
 ## 2.C. [NHÓM ĐIỀN tên] – Quét OCR, AI, ảnh thuốc, lịch, kiểm thử
 

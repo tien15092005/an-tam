@@ -44,11 +44,11 @@ Nhóm giữ **Docker Compose** để chạy hệ thống và **REST + JSON** đ�
 Kế hoạch hiện hành: `docs/SKILL_AN_TAM.md`. File `docs/PROMPT_HOAN_THIEN_APP.md` đã cũ.
 
 - **Bỏ** số đo sức khỏe. **Giữ** lịch tuần, lịch tháng, lịch tập thể dục.
-- **Nhóm gia đình kiểu Messenger:** mỗi nhóm 1 trưởng nhóm có quyền cao nhất đặt lịch; một người con ở được nhiều nhóm; một người già chỉ ở 1 nhóm; có chat chữ đơn giản. **Chat là tính năng bắt buộc, không được cắt** (nhóm thống nhất ngày 08/11/2026).
+- **Nhóm gia đình kiểu Messenger:** mỗi nhóm 1 trưởng nhóm có quyền cao nhất đặt lịch; một người con ở được nhiều nhóm; một người già chỉ ở 1 nhóm; ~~có chat chữ đơn giản, bắt buộc (08/11/2026)~~: đã bỏ ngày 24/11/2026, xem mục "Bỏ chat nhóm".
 - **Thuốc:** có thêm, sửa, xóa; đổi tên chức năng thành "Quét OCR"; đọc được toa, bao bì, hóa đơn; có ảnh và mô tả hình dạng, màu để người già phân biệt.
 - **Báo thức:** giọng đọc lặp liên tục đến khi xác nhận, giữ nút hoãn 10 phút; sau khi xác nhận hỏi có vấn đề gì không, báo cho các con rồi dừng.
 
-**Mặc định do người viết kế hoạch đề xuất, chờ nhóm xác nhận:** thành viên vẫn đánh dấu giúp và xử lý cảnh báo được; người già không thấy chat; có nút "Không uống được"; hết 2 phút không trả lời câu hỏi thì tự kết thúc; người con đánh dấu giúp cũng dừng báo.
+**Mặc định do người viết kế hoạch đề xuất, chờ nhóm xác nhận:** thành viên vẫn đánh dấu giúp và xử lý cảnh báo được; có nút "Không uống được"; hết 2 phút không trả lời câu hỏi thì tự kết thúc; người con đánh dấu giúp cũng dừng báo.
 
 **Giới hạn:** yêu cầu môn học trong file Word chỉ là khung báo cáo, không quy định công nghệ.
 
@@ -78,7 +78,7 @@ Kế hoạch hiện hành: `docs/SKILL_AN_TAM.md`. File `docs/PROMPT_HOAN_THIEN_
 
 Hành vi đã chốt trong bản thử:
 
-- Nghỉ 20 giây sau mỗi lần đọc xong. Không giới hạn số lần đọc.
+- Nghỉ 20 giây sau mỗi lần đọc xong. Mỗi lần báo tối đa 2 phút, tối đa 3 lần báo (xem mục "Giới hạn số lần báo").
 - Vuốt bỏ thông báo không làm dừng báo. Chỉ dừng khi bấm xác nhận hoặc hoãn.
 - Máy không có giọng tiếng Việt thì không đọc (tránh đọc như đánh vần), vẫn rung và hiện màn hình báo.
 - Khi máy đang mở khóa và người dùng ở app khác, Android chỉ cho hiện thông báo nổi (không tự bật màn hình báo); giọng đọc vẫn chạy. Màn hình báo toàn trang tự hiện khi máy khóa, màn hình tắt, hoặc khi đang mở app An Tâm.
@@ -100,7 +100,7 @@ Hành vi đã chốt trong bản thử:
 - **Xóa thuốc là xóa mềm** (`active = false`): máy người già thôi báo, nhật ký uống và audit vẫn còn.
 - **`schedule_version`** của nhóm tăng sau mọi thay đổi thuốc hoặc ảnh. Máy người già tải lại lịch khi mở app, khi quay lại app, khi kéo để làm mới và sau mỗi lần tắt báo thức. Chưa có FCM nên khi app đóng hẳn, máy người già chỉ nhận thay đổi ở lần mở app tiếp theo.
 - **Ảnh thuốc:** server giải mã rồi mã hóa lại JPEG (bỏ EXIF, cạnh dài tối đa 1600px, tối đa 4 ảnh/thuốc, 5MB). Ảnh không bao giờ sửa (ảnh mới có id mới), nên máy người già tải mỗi ảnh một lần và lưu trong thư mục riêng của app.
-- **Trạng thái liều và triển khai lịch** viết 2 lần (Java ở backend, Dart ở app) và cùng chạy bộ test vector `shared/test-vectors/`. Quá 60 phút chưa xác nhận là "lỡ"; thuốc thêm sau giờ uống trong ngày thì liều đó không tính và không báo.
+- **Trạng thái liều và triển khai lịch** viết 2 lần (Java ở backend, Dart ở app) và cùng chạy bộ test vector `shared/test-vectors/`. Quá 30 phút chưa xác nhận là "lỡ"; thuốc thêm sau giờ uống trong ngày thì liều đó không tính và không báo.
 - **Lưu offline bằng drift (SQLite)** đúng mục 3 của kế hoạch: bảng thuốc, ảnh, thông tin đồng bộ. App cũng lưu thông tin tài khoản lần cuối để khi mất mạng người già vẫn vào thẳng trang chủ.
 - **Báo thức:** đặt cho 7 ngày tới, mỗi phút có thuốc một báo thức; các thuốc cùng giờ được đọc chung. Id báo thức = 100.000.000 + số phút tính từ 1970, nên màn hình báo biết ngay thuốc nào đến giờ kể cả khi mất mạng hoặc vừa khởi động lại máy. Hàm native `replaceSchedule` hủy những báo thức không còn trong lịch (thuốc đã xóa); báo thức hoãn 10 phút dùng dải id riêng nên không bị hủy nhầm. Mỗi lần tắt báo thức app lại đặt tiếp, nên cửa sổ 7 ngày luôn được kéo dài.
 - **Giới hạn đã biết (đã xử lý 10/11/2026):** nếu người già không mở app và không có báo thức nào kêu trong 7 ngày, báo thức sẽ hết. Nay có đồng bộ nền mỗi 3 giờ (xem mục Đồng bộ nền dự phòng). Điện thoại được coi là đang ở múi giờ của người già.
@@ -125,7 +125,7 @@ Hành vi đã chốt trong bản thử:
 - **Hàng đợi thông báo (`notification_outbox`):** mọi thông báo được ghi trong cùng giao dịch với sự kiện, một dòng cho mỗi người nhận, khóa `dedupe_key` (ví dụ `alert:42:7`) nên gửi lại báo cáo hay quét lại không tạo thông báo thứ hai. Một tác vụ nền gửi mỗi 3 giây và chạy ngay khi backend khởi động, nên thông báo tồn lúc laptop tắt sẽ đi ngay khi bật lại. Độ trễ (tạo → giao cho FCM) đo bằng Micrometer `antam.notifications.latency` ở `/actuator/metrics`.
 - **FCM:** backend dùng Firebase Admin SDK 9.9.0, chỉ bật khi có biến `FIREBASE_CREDENTIALS` trỏ tới file service account (để ngoài Git, thư mục `secrets/`). App nhận cấu hình Firebase qua `--dart-define` (không cần `google-services.json` trong repo). Thiếu cấu hình thì thông báo được đóng là `DISABLED` và app tự làm mới: tab Hôm nay mỗi 30 giây và khi quay lại app. Chưa thử được với Firebase thật vì nhóm chưa tạo project.
 - **firebase_messaging 17** khuyên dùng FID thay cho registration token. Backend gửi bằng `Message.setToken`, nên app vẫn dùng `getToken()` (đánh dấu `ignore: deprecated_member_use` kèm lý do). Đổi sang FID khi Admin SDK hỗ trợ gửi theo FID.
-- **`NOT_CONFIRMED`:** quét mỗi phút, xét 24 giờ gần nhất, một cảnh báo cho mỗi giờ uống (chỉ mục duy nhất một phần trong PostgreSQL nên chạy hai lần vẫn chỉ có một). Nội dung ghi "chưa xác nhận", "máy có thể đang tắt hoặc mất mạng", không khẳng định đã quên. Máy người già vẫn tiếp tục báo. Cảnh báo tự đóng khi mọi thuốc của giờ đó có câu trả lời (từ người già hoặc người con đánh dấu giúp), ghi người đóng.
+- **`NOT_CONFIRMED`:** quét mỗi phút, xét 24 giờ gần nhất, một cảnh báo cho mỗi giờ uống (chỉ mục duy nhất một phần trong PostgreSQL nên chạy hai lần vẫn chỉ có một). Nội dung ghi "chưa xác nhận", "máy có thể đang tắt hoặc mất mạng", không khẳng định đã quên. Máy người già đã ngừng kêu sau lần báo thứ 3. Cảnh báo tự đóng khi mọi thuốc của giờ đó có câu trả lời (từ người già hoặc người con đánh dấu giúp), ghi người đóng.
 - **Đánh dấu giúp:** chỉ `TAKEN`, trong 7 ngày gần đây, không sớm hơn giờ uống quá 2 giờ, chỉ cho thuốc có lịch đúng giờ đó; câu trả lời đầu tiên được giữ. Hoàn tác chỉ áp dụng cho lần đánh dấu giúp, không xóa được câu trả lời của người già. Có ghi `audit_logs`.
 - **Dừng báo trên máy người già:** FCM data message `DOSE_MARKED` khi có Firebase; ngoài ra màn hình báo hỏi server mỗi 20 giây khi có mạng, thấy mọi thuốc của lần báo đã có câu trả lời thì dừng và đọc "Con đã ghi nhận ... uống thuốc rồi ạ". Mất mạng thì vẫn báo đến khi người già trả lời (đúng mục 9).
 - **Giao diện người con 4 tab** (Hôm nay, Lịch, Nhóm, Cài đặt) với bộ chuyển nhóm ở tiêu đề; app mở lại nhóm dùng gần nhất.
@@ -184,7 +184,41 @@ Hành vi đã chốt trong bản thử:
 - Router hỏi "có báo thức đang kêu không" mỗi lần chuyển màn hình; trên iOS lệnh này từng ném lỗi và sẽ làm app người con đứng yên. Nay các lệnh hỏi trạng thái trả "không có gì" khi không có phần báo thức gốc (có test).
 - `Info.plist`: lời giải thích quyền Camera, Thư viện ảnh; mức iOS tối thiểu 15.5 theo ML Kit.
 
+## Bỏ chat nhóm (24/11/2026)
+
+- **Vì sao:** thầy hướng dẫn chốt chat nhóm không thiết thực. Các con đã có Zalo hay Messenger để nói chuyện; việc app cần làm là nhắc thuốc và báo kết quả.
+- **Đã gỡ:** gói `backend/.../chat`, WebSocket `/ws/chat`, thư viện `spring-boot-starter-websocket`, loại thông báo `CHAT`; app bỏ tab **Nhóm** (còn 3 tab: Hôm nay, Lịch, Cài đặt) và thư viện `web_socket_channel`. Danh sách thành viên vẫn ở tab Cài đặt.
+- **Database:** migration `V8__drop_chat.sql` xóa `chat_messages`, `chat_read_states` và thông báo chat đang chờ. `V6__chat.sql` giữ nguyên vì Flyway cần lịch sử migration.
+- **Mất gì:** các "tin hệ thống" trong chat (ai đổi lịch, ai đánh dấu giúp). Cảnh báo và báo cáo vẫn hiện ở tab Hôm nay và qua thông báo đẩy; ai đổi lịch vẫn ghi trong `audit_logs`.
+- Test: backend 83 (bớt 6 test chat), app 83 (bớt 3 test chat), đều đạt.
+
 ## Các quyết định khác
 
 - **Nền tảng:** Android là mục tiêu nghiệm thu. iPhone là phần mở rộng tùy chọn.
 - **Git:** nhóm chọn làm trực tiếp trên nhánh `main` ở Giai đoạn 0.
+
+## Giới hạn số lần báo (25/11/2026)
+
+Trước đây máy kêu và đọc liên tục tới khi có người bấm, và "Nhắc lại sau 10 phút" bấm được mãi. Nếu người già để quên điện thoại hoặc đang ngủ, máy kêu cả tiếng, làm phiền cả nhà và tốn pin. Cách mới, tham khảo Medisafe và Apple Health:
+
+| Thời điểm | Máy người già | Người con |
+|---|---|---|
+| Tới giờ | Báo tối đa 2 phút rồi im, hiện thông báo yên lặng "Chưa xác nhận" | |
+| +10 phút | Tự báo lại (lần 2), tối đa 2 phút | |
+| +20 phút | Báo lần 3, không còn nút "Nhắc lại" | |
+| +30 phút | Không kêu nữa. Trang chính có thẻ "Thuốc HH:MM chưa trả lời" | Cảnh báo "chưa xác nhận", có nút Gọi và Đánh dấu đã uống |
+
+- Bấm "Nhắc lại sau 10 phút" tính là một lần báo. Tổng cộng không quá 3 lần cho mỗi giờ uống.
+- Người già trả lời muộn từ trang chính vẫn được ghi nhận; cảnh báo tự đóng và các con nhận tin kèm chữ "trả lời muộn".
+- Người con đánh dấu giúp hoặc người già trả lời: máy hủy các lần báo lại còn chờ.
+- Thời hạn "lỡ" đổi từ 60 xuống 30 phút ở cả backend, app và `shared/test-vectors/dose-status.json`.
+
+## Giao diện mới (25/11/2026)
+
+- Người con còn 3 tab: **Hôm nay** (một câu tóm tắt, mục "Cần bạn xem" chỉ hiện khi có chuyện, lịch trong ngày dạng dòng), **Thuốc** (dải 7 ngày, thuốc theo buổi, nút "+ Thêm": chụp toa, nhập tay, lịch tập), **Gia đình** (bố mẹ, các con, vài mục cài đặt).
+- Bỏ chữ "nhóm" khỏi giao diện: không còn chọn nhóm ở đầu màn hình, "trưởng nhóm" gọi là "người đặt lịch thuốc". Phía máy chủ vẫn lưu theo nhóm.
+- Bố mẹ: thẻ "Tiếp theo" viền xanh, việc đã xong tô xanh lá, 2 nút lớn cố định ở cuối; màn báo thức nền sáng, nút ĐÃ UỐNG RỒI to nhất.
+- Màu chủ đạo xanh lam đậm thay cam đất; có bản sáng và tối theo cài đặt điện thoại; chữ đạt tương phản 7:1 (chữ chính) và 4.5:1 (chữ phụ, màu trạng thái), có test kiểm tra.
+- Kiểu chữ Lexend (thiết kế để dễ đọc, đủ dấu tiếng Việt) thay Be Vietnam Pro, đóng gói trong app.
+- "Tôi thấy không khỏe" rút gọn thành "Tôi thấy mệt", vẫn gửi cảnh báo `UNWELL`.
+

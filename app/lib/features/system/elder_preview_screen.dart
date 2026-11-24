@@ -28,10 +28,10 @@ class ElderPreviewScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Lần uống tiếp theo', style: text.bodyLarge?.copyWith(color: Colors.white)),
-                      Text('07:30', style: text.headlineMedium?.copyWith(color: Colors.white)),
-                      Text('Amlodipin 5mg · 1 viên', style: text.titleMedium?.copyWith(color: Colors.white)),
-                      Text('Viên tròn nhỏ màu trắng', style: text.bodyLarge?.copyWith(color: Colors.white)),
+                      Text('Lần uống tiếp theo', style: text.bodyLarge?.copyWith(color: AppColors.onAccent)),
+                      Text('07:30', style: text.headlineMedium?.copyWith(color: AppColors.onAccent)),
+                      Text('Amlodipin 5mg · 1 viên', style: text.titleMedium?.copyWith(color: AppColors.onAccent)),
+                      Text('Viên tròn nhỏ màu trắng', style: text.bodyLarge?.copyWith(color: AppColors.onAccent)),
                     ],
                   ),
                 ),

@@ -8,7 +8,7 @@ import '../auth/session.dart';
 import 'code_dialog.dart';
 import 'groups_api.dart';
 
-/// Caregiver home: the family groups this person belongs to, like a list of group chats.
+/// Caregiver home: the family groups this person belongs to, one card per family.
 class GroupsScreen extends ConsumerWidget {
   const GroupsScreen({super.key});
 
@@ -57,18 +57,18 @@ class GroupsScreen extends ConsumerWidget {
                 const Card(
                   child: Padding(
                     padding: EdgeInsets.all(AppSpacing.md),
-                    child: Text('Bạn chưa ở nhóm nào. Tạo nhóm cho gia đình mình, hoặc nhập mã mời anh chị em gửi.'),
+                    child: Text('Bắt đầu bằng cách tạo gia đình của bạn, hoặc nhập mã mời anh chị em gửi.'),
                   ),
                 ),
               for (final g in me.groups) ...[
                 Card(
                   child: ListTile(
-                    leading: const CircleAvatar(
+                    leading: CircleAvatar(
                       backgroundColor: AppColors.navySoft,
                       child: Icon(Icons.home, color: AppColors.navy),
                     ),
                     title: Text(g.name),
-                    subtitle: Text(g.myRole == GroupRole.owner ? 'Bạn là trưởng nhóm' : 'Thành viên'),
+                    subtitle: Text(g.myRole == GroupRole.owner ? 'Bạn đặt lịch thuốc' : 'Bạn xem và nhận báo cáo'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => context.go('/groups/${g.id}'),
                   ),
@@ -78,9 +78,9 @@ class GroupsScreen extends ConsumerWidget {
               const SizedBox(height: AppSpacing.md),
               FilledButton.icon(
                 icon: const Icon(Icons.add),
-                label: const Text('Tạo nhóm gia đình'),
+                label: const Text('Tạo gia đình'),
                 onPressed: () async {
-                  final name = await promptText(context, title: 'Tạo nhóm', label: 'Tên nhóm, ví dụ: Nhà bà Lan', action: 'Tạo');
+                  final name = await promptText(context, title: 'Tạo gia đình', label: 'Tên, ví dụ: Nhà bà Lan', action: 'Tạo');
                   if (name != null && context.mounted) await _run(context, ref, () => api.create(name));
                 },
               ),
@@ -90,7 +90,7 @@ class GroupsScreen extends ConsumerWidget {
                 label: const Text('Nhập mã mời'),
                 onPressed: () async {
                   final code = await promptText(context,
-                      title: 'Tham gia nhóm', label: 'Mã mời 10 ký tự', action: 'Tham gia', caps: TextCapitalization.characters);
+                      title: 'Nhập mã mời', label: 'Mã mời 10 ký tự', action: 'Tham gia', caps: TextCapitalization.characters);
                   if (code != null && context.mounted) await _run(context, ref, () => api.acceptInvite(code));
                 },
               ),

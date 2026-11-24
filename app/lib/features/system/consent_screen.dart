@@ -38,10 +38,10 @@ class ConsentScreen extends ConsumerWidget {
           const SizedBox(height: AppSpacing.md),
           point(Icons.person_outline, 'Thông tin thu thập',
               'Tên, email, số điện thoại của người con; tên gọi, năm sinh của bố mẹ; tên thuốc, giờ uống, ảnh thuốc, '
-                  'các lần xác nhận uống thuốc, cảnh báo và tin nhắn trong nhóm. Không thu thập số đo sức khỏe.'),
+                  'các lần xác nhận uống thuốc và cảnh báo. Không thu thập số đo sức khỏe.'),
           point(Icons.lock_outline, 'Ai xem được',
-              'Chỉ các thành viên trong cùng nhóm gia đình. Quản trị hệ thống chỉ thấy số liệu tổng hợp, '
-                  'không xem được thuốc, ảnh hay tin nhắn.'),
+              'Chỉ các thành viên trong cùng gia đình. Quản trị hệ thống chỉ thấy số liệu tổng hợp, '
+                  'không xem được thuốc hay ảnh.'),
           point(Icons.document_scanner_outlined, 'Quét OCR',
               'Chữ được đọc trên điện thoại. Dòng có họ tên, địa chỉ, số điện thoại bị xóa trước khi gửi đi. '
                   'Ảnh giấy tờ không gửi lên máy chủ, trừ khi bạn chọn dùng ảnh làm ảnh thuốc.'),

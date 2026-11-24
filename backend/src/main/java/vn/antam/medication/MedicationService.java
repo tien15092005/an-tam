@@ -49,14 +49,13 @@ public class MedicationService {
     private final Clock clock;
     private final vn.antam.care.CareService care;
     private final Notifier notifier;
-    private final vn.antam.chat.ChatService chat;
     private final vn.antam.exercise.ExerciseService exercises;
 
     public MedicationService(MedicationRepository medications, MedicationImageRepository images, DoseLogRepository doseLogs,
                              AuditLogRepository audit, GroupAccess access, GroupMemberRepository members,
                              FamilyGroupRepository groups, ElderProfileRepository elders, ImageStore imageStore, Clock clock,
                              vn.antam.care.CareService care, Notifier notifier,
-                             vn.antam.exercise.ExerciseService exercises, vn.antam.chat.ChatService chat) {
+                             vn.antam.exercise.ExerciseService exercises) {
         this.medications = medications;
         this.images = images;
         this.doseLogs = doseLogs;
@@ -69,7 +68,6 @@ public class MedicationService {
         this.clock = clock;
         this.care = care;
         this.notifier = notifier;
-        this.chat = chat;
         this.exercises = exercises;
     }
 
@@ -210,7 +208,6 @@ public class MedicationService {
         // Data-only push so the elder's phone downloads the new schedule even while the app is closed.
         notifier.toUser(m.getElderUserId(), Notifier.Kind.SCHEDULE_CHANGED, groupId, m.getId(),
                 "schedule:" + groupId + ":" + group.getScheduleVersion() + ":" + m.getElderUserId(), null, null, false);
-        chat.system(groupId, chat.nameOf(userId) + " " + verb(action) + " thuốc " + m.getName(), null);
         audit.save(new AuditLog(groupId, userId, action, "MEDICATION", m.getId(),
                 "{\"name\":\"" + jsonEscape(m.getName()) + "\",\"seriesId\":\"" + m.getSeriesId() + "\"}", now));
     }

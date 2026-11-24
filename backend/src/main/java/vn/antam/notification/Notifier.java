@@ -29,8 +29,6 @@ public class Notifier {
         DOSE_MARKED,
         /** The elder pressed "TÔI ĐI TẬP ĐÂY". */
         EXERCISE_REPORT,
-        /** A new chat message in the group. */
-        CHAT,
         /** The schedule changed: the elder's phone downloads it again. Data only. */
         SCHEDULE_CHANGED
     }

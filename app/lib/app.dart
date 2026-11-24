@@ -13,7 +13,6 @@ import 'features/elder/alarm_screen.dart';
 import 'features/elder/issue_question_screen.dart';
 import 'features/elder/readiness_screen.dart';
 import 'features/care/care_api.dart';
-import 'features/chat/chat_api.dart';
 import 'features/caregiver/caregiver_shell.dart';
 import 'features/caregiver/today_api.dart';
 import 'features/groups/groups_api.dart';
@@ -96,10 +95,11 @@ class AnTamApp extends ConsumerStatefulWidget {
   ConsumerState<AnTamApp> createState() => _AnTamAppState();
 }
 
-class _AnTamAppState extends ConsumerState<AnTamApp> {
+class _AnTamAppState extends ConsumerState<AnTamApp> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     AlarmChannel.onRinging(
       (_) => ref.read(routerProvider).go('/alarm'),
       onSyncRequested: () {
@@ -107,6 +107,16 @@ class _AnTamAppState extends ConsumerState<AnTamApp> {
       },
     );
   }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// The phone switched between light and dark: rebuild every screen with the other palette.
+  @override
+  void didChangePlatformBrightness() => setState(() {});
 
   void _onPush(String kind, Map<String, dynamic> data, {required bool elder}) {
     if (elder) {
@@ -116,7 +126,6 @@ class _AnTamAppState extends ConsumerState<AnTamApp> {
     }
     ref.invalidate(openAlertsProvider);
     ref.invalidate(dayViewProvider);
-    if (kind == 'CHAT') ref.invalidate(chatUnreadProvider);
   }
 
   @override
@@ -132,12 +141,15 @@ class _AnTamAppState extends ConsumerState<AnTamApp> {
         // Tried again at the next sign-in or app start.
       }
     });
+    // Light or dark follows the phone. Colours are read while screens build, so a switch remounts them.
+    AppColors.dark = WidgetsBinding.instance.platformDispatcher.platformBrightness == Brightness.dark;
     return MaterialApp.router(
       scaffoldMessengerKey: scaffoldMessengerKey,
       title: 'An Tâm',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.build(UiDensity.caregiver),
       routerConfig: ref.watch(routerProvider),
+      builder: (context, child) => KeyedSubtree(key: ValueKey(AppColors.dark), child: child ?? const SizedBox()),
     );
   }
 }

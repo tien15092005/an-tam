@@ -127,52 +127,99 @@ class _IssueQuestionScreenState extends ConsumerState<IssueQuestionScreen> {
   }
 
   List<Widget> _ask(BuildContext context, TextTheme text) {
-    Widget option(IssueKind kind, IconData icon, String label) => Padding(
-          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-          child: OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size.fromHeight(72),
-              alignment: Alignment.centerLeft,
-              foregroundColor: kind == IssueKind.unwell ? AppColors.danger : AppColors.ink,
-            ),
-            onPressed: () => _finish(kind),
-            icon: Icon(icon, size: 32),
-            label: Text(label),
-          ),
-        );
+    final name = ref.read(elderScheduleProvider).value?.callName ?? '';
+    final who = name.isEmpty ? '' : '${name.split(' ').first} ';
+    Widget tile(IssueKind kind, IconData icon, String label) {
+      final danger = kind == IssueKind.unwell;
+      return OutlinedButton(
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size.fromHeight(120),
+          padding: const EdgeInsets.all(AppSpacing.sm),
+          foregroundColor: danger ? AppColors.danger : AppColors.ink,
+          side: BorderSide(color: danger ? AppColors.danger : AppColors.line, width: danger ? 2.5 : 2),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        ),
+        onPressed: () => _finish(kind),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon, size: 34, color: danger ? AppColors.danger : AppColors.warn),
+          const SizedBox(height: AppSpacing.sm),
+          Text(label, textAlign: TextAlign.center, style: TextStyle(fontWeight: danger ? FontWeight.w700 : FontWeight.w600)),
+        ]),
+      );
+    }
+
     return [
-      Icon(widget.args.taken ? Icons.check_circle : Icons.info, size: 64, color: widget.args.taken ? AppColors.ok : AppColors.warn),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: widget.args.taken ? AppColors.okSoft : AppColors.warnSoft,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(widget.args.taken ? Icons.check : Icons.info_outline,
+                color: widget.args.taken ? AppColors.ok : AppColors.warn, size: 24),
+            const SizedBox(width: 6),
+            Text(widget.args.taken ? 'Đã ghi: đã uống' : 'Đã ghi: chưa uống được',
+                style: text.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w600, color: widget.args.taken ? AppColors.ok : AppColors.warn)),
+          ]),
+        ),
+      ),
+      const SizedBox(height: AppSpacing.md),
       Semantics(
         header: true,
-        child: Text(widget.args.taken ? 'Có gặp vấn đề gì không?' : 'Vì sao không uống được?',
-            style: text.headlineMedium, textAlign: TextAlign.center),
+        child: Text(widget.args.taken ? '${who}có gặp vấn đề gì không ạ?' : 'Vì sao ${who}chưa uống được ạ?',
+            style: text.headlineMedium?.copyWith(fontSize: 34, height: 1.2)),
       ),
-      const SizedBox(height: AppSpacing.lg),
-      if (widget.args.taken)
-        Padding(
-          padding: const EdgeInsets.only(bottom: AppSpacing.md),
-          child: FilledButton.icon(
-            key: const Key('noProblem'),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.ok, minimumSize: const Size.fromHeight(96)),
-            onPressed: () => _finish(null),
-            icon: const Icon(Icons.thumb_up, size: 40),
-            label: const Text('KHÔNG CÓ GÌ'),
+      const SizedBox(height: AppSpacing.md),
+      if (widget.args.taken) ...[
+        FilledButton(
+          key: const Key('noProblem'),
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColors.ok,
+            foregroundColor: AppColors.onAccent,
+            minimumSize: const Size.fromHeight(100),
+            textStyle: text.headlineSmall?.copyWith(fontSize: 30),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
           ),
+          onPressed: () => _finish(null),
+          child: const Text('Không có gì'),
         ),
-      option(IssueKind.lostMedicine, Icons.search_off, 'Mất thuốc'),
-      option(IssueKind.outOfMedicine, Icons.remove_shopping_cart, 'Hết thuốc'),
-      option(IssueKind.unsurePill, Icons.help_outline, 'Thuốc trông khác, không chắc'),
-      option(IssueKind.unwell, Icons.sick, 'Tôi thấy không khỏe'),
-      option(IssueKind.otherIssue, Icons.more_horiz, 'Vấn đề khác'),
-      const SizedBox(height: AppSpacing.sm),
-      Center(child: VoiceButton(onHeard: _onVoice, foreground: AppColors.navy)),
+        const SizedBox(height: AppSpacing.md),
+      ],
+      GridView.count(
+        crossAxisCount: 2,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        mainAxisSpacing: AppSpacing.sm + 4,
+        crossAxisSpacing: AppSpacing.sm + 4,
+        childAspectRatio: 1.3,
+        children: [
+          tile(IssueKind.lostMedicine, Icons.search_off, 'Mất thuốc'),
+          tile(IssueKind.outOfMedicine, Icons.inventory_2_outlined, 'Hết thuốc'),
+          tile(IssueKind.unsurePill, Icons.help_outline, 'Thuốc trông lạ'),
+          tile(IssueKind.unwell, Icons.favorite_border, 'Tôi thấy mệt'),
+        ],
+      ),
+      const SizedBox(height: AppSpacing.sm + 4),
+      OutlinedButton(
+        style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(68)),
+        onPressed: () => _finish(IssueKind.otherIssue),
+        child: const Text('Vấn đề khác'),
+      ),
+      const SizedBox(height: AppSpacing.md),
+      Center(child: VoiceButton(onHeard: _onVoice, foreground: AppColors.primary)),
+      const SizedBox(height: AppSpacing.md),
+      Text('Các con sẽ nhận được câu trả lời.', textAlign: TextAlign.center, style: text.bodyMedium),
     ];
   }
 
   List<Widget> _after(BuildContext context, TextTheme text, int? groupId) {
     final issue = _issue;
     return [
-      Icon(issue == null ? Icons.favorite : Icons.mark_email_read, size: 72, color: issue == null ? AppColors.ok : AppColors.navy),
+      Icon(issue == null ? Icons.check_circle : Icons.mark_email_read, size: 72, color: issue == null ? AppColors.ok : AppColors.primary),
       Text(issue == null ? 'Cảm ơn ạ!' : 'Đã báo cho các con', style: text.headlineMedium, textAlign: TextAlign.center),
       const SizedBox(height: AppSpacing.lg),
       if (issue == IssueKind.unwell) UnwellHelp(groupId: groupId),

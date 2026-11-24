@@ -23,7 +23,7 @@ import vn.antam.group.GroupService;
 /**
  * "Xóa tài khoản và dữ liệu" (plan §11). A caregiver leaves every group (an owner must hand over first when
  * others remain; as the last caregiver the group is deleted, and with it the elders' personal data and photos),
- * their chat lines are blanked, and the account keeps only an anonymous row so history stays consistent.
+ * and the account keeps only an anonymous row so history stays consistent.
  */
 @RestController
 @RequestMapping("/api/me")
@@ -66,7 +66,6 @@ public class AccountController {
             groups.leave(me, groupId, true); // throws transfer_required for an owner with other caregivers
             if (lastCaregiver) purgeGroup(groupId, elders, now);
         }
-        jdbc.update("UPDATE chat_messages SET deleted_at = ? WHERE sender_id = ? AND deleted_at IS NULL", Timestamp.from(now), me);
         jdbc.update("DELETE FROM devices WHERE user_id = ?", me);
         tokens.revokeAll(me);
         user.anonymize();
@@ -82,7 +81,6 @@ public class AccountController {
                 """, ts, groupId);
         jdbc.update("UPDATE medications SET active = false WHERE group_id = ?", groupId);
         jdbc.update("UPDATE exercises SET active = false WHERE group_id = ?", groupId);
-        jdbc.update("UPDATE chat_messages SET deleted_at = ? WHERE group_id = ? AND deleted_at IS NULL", ts, groupId);
         for (Long elderId : elders) {
             users.findById(elderId).ifPresent(User::anonymize);
             jdbc.update("UPDATE elder_profiles SET phone = NULL, health_note = NULL, call_name = 'Người dùng đã xóa' WHERE user_id = ?",

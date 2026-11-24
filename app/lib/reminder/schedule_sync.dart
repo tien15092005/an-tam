@@ -81,7 +81,9 @@ class ElderScheduleNotifier extends AsyncNotifier<ElderSchedule> {
 
   Future<void> _arm(ElderSchedule s) async {
     try {
-      await AlarmChannel.replaceSchedule(buildAlarms(s, DateTime.now()));
+      final now = DateTime.now();
+      await AlarmChannel.replaceSchedule(buildAlarms(s, now));
+      await AlarmChannel.answered(answeredAlarmIds(s, now));
     } on MissingPluginException {
       // Widget tests and non-Android platforms have no native alarm engine.
     } catch (e) {

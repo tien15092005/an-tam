@@ -160,7 +160,9 @@ Bấm "Báo sau 15 giây / 1 phút / 5 phút" trong màn hình Thử nghiệm b�
 
 **Chưa làm:** thử với ảnh chụp thật (giấy in, ánh sáng thật) và với bao bì, hóa đơn thật.
 
-## Giai đoạn 9: Chat nhóm (09/11/2026)
+## Giai đoạn 9: Chat nhóm (09/11/2026, đã gỡ ngày 24/11/2026)
+
+> Chat nhóm đã bị gỡ theo yêu cầu của thầy (xem DECISIONS.md, "Bỏ chat nhóm"). Phần dưới giữ lại làm lịch sử.
 
 **Test tự động:** backend `ChatTest` 5 test, `ChatSocketTest` 1 test (WebSocket thật trên cổng ngẫu nhiên); app thêm 3 test gộp tin.
 

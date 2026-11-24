@@ -14,7 +14,7 @@ public enum DoseStatus {
     /** The dose time had already passed when the medication was added, so it neither counts nor reminds. */
     NOT_APPLICABLE;
 
-    public static final Duration GRACE = Duration.ofMinutes(60);
+    public static final Duration GRACE = Duration.ofMinutes(30);
 
     /**
      * @param due       the scheduled local date-time

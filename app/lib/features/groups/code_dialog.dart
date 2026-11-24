@@ -18,7 +18,7 @@ Future<void> showCodeDialog(BuildContext context, {required String title, requir
         children: [
           SelectableText(
             code.code,
-            style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w800, letterSpacing: 6, color: AppColors.navy),
+            style: TextStyle(fontSize: 34, fontWeight: FontWeight.w800, letterSpacing: 6, color: AppColors.navy),
           ),
           const SizedBox(height: AppSpacing.sm),
           Text('Hết hạn lúc $t ngày ${d.day}/${d.month}'),

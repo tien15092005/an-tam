@@ -34,6 +34,10 @@ class AlarmReadiness {
       );
 }
 
+/// Rings per dose: at the dose time, then 10 and 20 minutes later (snoozes count too).
+/// Must match AlarmService.MAX_ATTEMPTS in Java.
+const maxAlarmAttempts = 3;
+
 /// Must match AlarmScheduler.SCHEDULE_ID_BASE in Java.
 const scheduleIdBase = 100000000;
 
@@ -64,13 +68,35 @@ class AlarmChannel {
     required DateTime at,
     required String title,
     required String speech,
+    int attempt = 1,
   }) =>
       _channel.invokeMethod('schedule', {
         'id': id,
         'triggerAtMillis': at.millisecondsSinceEpoch,
         'title': title,
         'speech': speech,
+        'attempt': attempt,
       });
+
+  /// Doses at these schedule alarms were answered: drop their automatic re-rings and the
+  /// "chưa xác nhận" notice.
+  static Future<void> answered(List<int> scheduleIds) async {
+    if (scheduleIds.isEmpty) return;
+    try {
+      await _channel.invokeMethod<void>('answered', {'ids': scheduleIds});
+    } on MissingPluginException {
+      // Tests and non-Android platforms.
+    }
+  }
+
+  /// Which ring this is for the alarm(s) ringing now: 1 at the dose time, up to [maxAlarmAttempts].
+  static Future<int> ringingAttempt() async {
+    try {
+      return await _channel.invokeMethod<int>('ringingAttempt') ?? 1;
+    } on MissingPluginException {
+      return 1;
+    }
+  }
 
   static Future<void> cancel(int id) => _channel.invokeMethod('cancel', {'id': id});
 

@@ -19,7 +19,7 @@ import vn.antam.IntegrationTest;
 import vn.antam.user.User;
 import vn.antam.user.UserRepository;
 
-/** Phase 10 DoD: the admin sees totals only (no medicines, photos, chat), and locking ends the session. */
+/** Phase 10 DoD: the admin sees totals only (no medicines, photos), and locking ends the session. */
 class AdminTest extends IntegrationTest {
 
     @Autowired UserRepository users;
@@ -46,12 +46,10 @@ class AdminTest extends IntegrationTest {
                 .andReturn()), "$.userId");
         medId = readId(body(mvc.perform(json(as(owner, post("/api/groups/" + groupId + "/elders/" + elderId + "/medications")),
                 "{\"name\":\"Amlodipin\",\"times\":[\"08:00\"]}")).andReturn()), "$.id");
-        mvc.perform(json(as(owner, post("/api/groups/" + groupId + "/chat/messages")),
-                "{\"clientMessageId\":\"" + UUID.randomUUID() + "\",\"body\":\"bí mật gia đình\"}")).andExpect(status().isOk());
     }
 
     @Test
-    void theAdminSeesTotalsButNoMedicinesPhotosChatOrDoses() throws Exception {
+    void theAdminSeesTotalsButNoMedicinesPhotosOrDoses() throws Exception {
         mvc.perform(as(admin, get("/api/admin/stats"))).andExpect(status().isOk())
                 .andExpect(jsonPath("$.usersByType.CAREGIVER").isNumber())
                 .andExpect(jsonPath("$.groups").isNumber())
@@ -59,7 +57,7 @@ class AdminTest extends IntegrationTest {
         String base = "/api/groups/" + groupId;
         String today = LocalDate.now(ZoneId.of("Asia/Ho_Chi_Minh")).toString();
         for (String path : new String[] {
-                base, base + "/elders/" + elderId + "/medications", base + "/medication-images/1", base + "/chat/messages",
+                base, base + "/elders/" + elderId + "/medications", base + "/medication-images/1",
                 base + "/alerts", base + "/elders/" + elderId + "/day?date=" + today,
                 base + "/elders/" + elderId + "/doses?date=" + today, base + "/elders/" + elderId + "/exercises"}) {
             mvc.perform(as(admin, get(path))).andExpect(status().isNotFound());

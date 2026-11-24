@@ -16,6 +16,7 @@ import '../auth/session.dart';
 import '../groups/code_dialog.dart';
 import '../groups/groups_api.dart';
 import '../medications/med_photo.dart';
+import 'alarm_screen.dart' show QuestionArgs;
 import 'call_children.dart';
 import 'readiness_screen.dart';
 
@@ -101,6 +102,19 @@ class _ElderHomeScreenState extends ConsumerState<ElderHomeScreen> {
     );
   }
 
+  /// Answer a dose from the home screen after its alarm went quiet ("Thuốc 11:30 chưa trả lời").
+  Future<void> _answerLate(DateTime minute, List<DoseSlot> slots, {required bool taken}) async {
+    final outbox = ref.read(outboxProvider);
+    final id = await outbox.startDoseReport(
+      minute: minute,
+      medicationIds: [for (final d in slots) d.med.id],
+      taken: taken,
+    );
+    await AlarmChannel.answered([alarmIdForMinute(minute)]);
+    await ref.read(elderScheduleProvider.notifier).reloadLocal();
+    if (mounted) context.go('/alarm/question', extra: QuestionArgs([id], taken: taken));
+  }
+
   @override
   Widget build(BuildContext context) {
     final schedule = ref.watch(elderScheduleProvider);
@@ -114,121 +128,169 @@ class _ElderHomeScreenState extends ConsumerState<ElderHomeScreen> {
         final today = s == null
             ? const <DoseSlot>[]
             : s.dosesOn(_now).where((d) => d.statusAt(_now) != DoseStatus.notApplicable).toList();
+        final waiting = <DateTime, List<DoseSlot>>{};
+        for (final d in s == null ? const <DoseSlot>[] : unansweredDoses(s, _now)) {
+          waiting.putIfAbsent(d.at, () => []).add(d);
+        }
         final next = s?.nextDose(_now);
+        final showNext = next != null && !waiting.containsKey(next.at);
+        final later = today.where((d) => d.statusAt(_now) == DoseStatus.upcoming && (next == null || d.at.isAfter(next.at)))
+            .map((d) => d.at)
+            .toSet()
+            .toList();
+        final answered = <DateTime, String>{};
+        for (final d in today) {
+          if (d.logStatus != null) answered[d.at] = answered[d.at] == 'TAKEN' || d.logStatus == 'TAKEN' ? 'TAKEN' : d.logStatus!;
+        }
         final exercises = s == null
             ? const <ExerciseSlot>[]
             : s.exercisesOn(_now).where((e) => e.statusAt(_now) != DoseStatus.notApplicable).toList();
+        final exercisesDone = exercises.where((e) => e.done).toList();
+        final exercisesOpen = exercises.where((e) => !e.done && e.statusAt(_now) != DoseStatus.upcoming).toList();
         return Scaffold(
           body: SafeArea(
-            child: RefreshIndicator(
-              onRefresh: () => ref.read(elderScheduleProvider.notifier).refresh(),
-              child: ListView(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                children: [
-                  Text('Xin chào, $name', style: text.titleLarge),
-                  Semantics(
-                    label: 'Bây giờ là ${_now.hour} giờ ${_now.minute} phút, ${_weekday[_now.weekday]} ngày ${_now.day} tháng ${_now.month}',
-                    excludeSemantics: true,
-                    child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                      Text(hhmm(_now), style: text.displaySmall?.copyWith(fontWeight: FontWeight.w800)),
-                      const SizedBox(width: AppSpacing.md),
-                      Flexible(
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                          child: Text('${_weekday[_now.weekday]}, ${_now.day}/${_now.month}', style: text.bodyLarge),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: () => ref.read(elderScheduleProvider.notifier).refresh(),
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.md),
+                    children: [
+                      Text('Chào $name', style: text.bodyLarge?.copyWith(color: AppColors.muted, fontSize: 22)),
+                      Semantics(
+                        label: 'Bây giờ là ${_now.hour} giờ ${_now.minute} phút, ${_weekday[_now.weekday]} ngày ${_now.day} tháng ${_now.month}',
+                        excludeSemantics: true,
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(hhmm(_now),
+                              style: text.displaySmall?.copyWith(
+                                  fontSize: 56, height: 1.05, fontFeatures: const [FontFeature.tabularFigures()])),
+                          Text('${_weekday[_now.weekday]}, ${_now.day} tháng ${_now.month}',
+                              style: text.bodyLarge?.copyWith(color: AppColors.muted, fontSize: 22)),
+                        ]),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                      if (readiness != null && !readiness.alarmsReady)
+                        _Banner(
+                          icon: Icons.warning_amber,
+                          color: AppColors.warn,
+                          background: AppColors.warnSoft,
+                          text: 'Máy chưa sẵn sàng báo thức. Nhờ con bấm vào đây để kiểm tra.',
+                          onTap: () => context.push('/readiness'),
                         ),
-                      ),
-                    ]),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  if (readiness != null && !readiness.alarmsReady)
-                    _Banner(
-                      icon: Icons.warning_amber,
-                      color: AppColors.warn,
-                      background: AppColors.warnSoft,
-                      text: 'Máy chưa sẵn sàng báo thức. Nhờ con bấm vào đây để kiểm tra.',
-                      onTap: () => context.push('/readiness'),
-                    ),
-                  if (s?.offline == true)
-                    _Banner(
-                      icon: Icons.wifi_off,
-                      color: AppColors.warn,
-                      background: AppColors.warnSoft,
-                      text: 'Đang không có mạng. Máy vẫn nhắc thuốc theo lịch đã lưu'
-                          '${s?.lastSynced == null ? '' : ' lúc ${hhmm(s!.lastSynced!)}'}.',
-                    ),
-                  if (schedule.isLoading && s == null) const LinearProgressIndicator(),
-                  if (schedule.hasError && s == null) Text(describeNetworkError(schedule.error!), style: text.bodyLarge),
-                  if (next != null) ...[
-                    Text('Sắp tới', style: text.titleLarge),
-                    const SizedBox(height: AppSpacing.sm),
-                    _NextCard(slot: next, now: _now),
-                    const SizedBox(height: AppSpacing.md),
-                  ],
-                  Row(children: [
-                    Expanded(
-                      child: FilledButton.icon(
-                        key: const Key('callChild'),
-                        style: FilledButton.styleFrom(backgroundColor: AppColors.navy, minimumSize: const Size.fromHeight(88)),
-                        onPressed: _groupId == null ? null : () => showCallSheet(context, _groupId!),
-                        icon: const Icon(Icons.phone, size: 32),
-                        label: const Text('Gọi cho con', textAlign: TextAlign.center),
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        key: const Key('unwell'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.danger,
-                          side: const BorderSide(color: AppColors.danger, width: 2),
-                          minimumSize: const Size.fromHeight(88),
+                      if (s?.offline == true)
+                        _Banner(
+                          icon: Icons.wifi_off,
+                          color: AppColors.warn,
+                          background: AppColors.warnSoft,
+                          text: 'Đang không có mạng. Máy vẫn nhắc thuốc theo lịch đã lưu'
+                              '${s?.lastSynced == null ? '' : ' lúc ${hhmm(s!.lastSynced!)}'}.',
                         ),
-                        onPressed: _unwell,
-                        icon: const Icon(Icons.sick, size: 32),
-                        label: const Text('Tôi thấy không khỏe', textAlign: TextAlign.center),
-                      ),
-                    ),
-                  ]),
-                  const SizedBox(height: AppSpacing.lg),
-                  Semantics(header: true, child: Text('Thuốc hôm nay', style: text.titleLarge)),
-                  const SizedBox(height: AppSpacing.sm),
-                  if (s != null && today.isEmpty)
-                    Text(s.meds.isEmpty ? 'Chưa có thuốc nào. Khi con đặt lịch, thuốc sẽ hiện ở đây.' : 'Hôm nay không có thuốc.',
-                        style: text.bodyLarge),
-                  for (final d in today) _DoseCard(slot: d, now: _now),
-                  if (exercises.isNotEmpty) ...[
-                    const SizedBox(height: AppSpacing.lg),
-                    Semantics(header: true, child: Text('Tập thể dục hôm nay', style: text.titleLarge)),
-                    const SizedBox(height: AppSpacing.sm),
-                    for (final e in exercises)
-                      _ExerciseRow(
-                        slot: e,
-                        now: _now,
-                        onGo: () async {
-                          await ref.read(outboxProvider).reportExercise(exerciseId: e.exercise.id, day: e.at);
-                          await ref.read(elderScheduleProvider.notifier).reloadLocal();
-                        },
-                      ),
-                  ],
-                  const SizedBox(height: AppSpacing.xl),
-                  TextButton.icon(
-                    onPressed: () => context.push('/readiness'),
-                    icon: const Icon(Icons.fact_check_outlined),
-                    label: const Text('Kiểm tra máy'),
+                      if (schedule.isLoading && s == null) const LinearProgressIndicator(),
+                      if (schedule.hasError && s == null) Text(describeNetworkError(schedule.error!), style: text.bodyLarge),
+                      for (final e in waiting.entries)
+                        _WaitingCard(
+                          minute: e.key,
+                          slots: e.value,
+                          onTaken: () => _answerLate(e.key, e.value, taken: true),
+                          onNotTaken: () => _answerLate(e.key, e.value, taken: false),
+                        ),
+                      if (showNext) ...[
+                        _NextCard(slot: next, now: _now),
+                        const SizedBox(height: AppSpacing.lg),
+                      ],
+                      for (final e in answered.entries)
+                        _DoneRow(
+                          ok: e.value == 'TAKEN',
+                          label: '${hhmm(e.key)} · ${e.value == 'TAKEN' ? 'Đã uống thuốc' : e.value == 'NOT_TAKEN' ? 'Chưa uống được' : 'Bỏ qua'}',
+                          onTap: () => _showDose(context, today.firstWhere((d) => d.at == e.key)),
+                        ),
+                      for (final e in exercisesDone) _DoneRow(ok: true, label: '${hhmm(e.at)} · Đã đi tập'),
+                      for (final e in exercisesOpen)
+                        _ExerciseRow(
+                          slot: e,
+                          now: _now,
+                          onGo: () async {
+                            await ref.read(outboxProvider).reportExercise(exerciseId: e.exercise.id, day: e.at);
+                            await ref.read(elderScheduleProvider.notifier).reloadLocal();
+                          },
+                        ),
+                      if (later.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(left: AppSpacing.xs, top: AppSpacing.xs),
+                          child: Text(
+                            later.length == 1
+                                ? 'Còn 1 lần nữa lúc ${hhmm(later.first)}'
+                                : 'Còn ${later.length} lần nữa: ${later.map(hhmm).join(', ')}',
+                            style: text.bodyLarge?.copyWith(color: AppColors.muted),
+                          ),
+                        ),
+                      if (s != null && today.isEmpty && exercises.isEmpty)
+                        Text(s.meds.isEmpty ? 'Chưa có thuốc nào. Khi con đặt lịch, thuốc sẽ hiện ở đây.' : 'Hôm nay không có thuốc.',
+                            style: text.bodyLarge),
+                      if (s != null && today.isNotEmpty && next == null && waiting.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: AppSpacing.sm),
+                          child: Text('Xong thuốc hôm nay rồi ạ.', style: text.titleMedium?.copyWith(color: AppColors.ok)),
+                        ),
+                      const SizedBox(height: AppSpacing.xl),
+                      Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                        TextButton(onPressed: () => context.push('/readiness'), child: const Text('Kiểm tra máy')),
+                        TextButton(
+                          style: TextButton.styleFrom(foregroundColor: AppColors.muted),
+                          onPressed: () async {
+                            if (await confirm(context,
+                                title: 'Đăng xuất?', message: 'Máy sẽ thôi nhắc thuốc. Sẽ cần nhập lại mã của con.', action: 'Đăng xuất')) {
+                              await ref.read(sessionProvider.notifier).logout(); // also clears schedule and alarms
+                            }
+                          },
+                          child: const Text('Đăng xuất'),
+                        ),
+                      ]),
+                    ],
                   ),
-                  TextButton(
-                    onPressed: () async {
-                      if (await confirm(context,
-                          title: 'Đăng xuất?', message: 'Máy sẽ thôi nhắc thuốc. Sẽ cần nhập lại mã của con.', action: 'Đăng xuất')) {
-                        await ref.read(sessionProvider.notifier).logout(); // also clears schedule and alarms
-                      }
-                    },
-                    child: const Text('Đăng xuất'),
-                  ),
-                ],
+                ),
               ),
-            ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.md),
+                child: Row(children: [
+                  Expanded(
+                    child: FilledButton(
+                      key: const Key('callChild'),
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(88),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+                        textStyle: text.titleMedium?.copyWith(fontSize: 22, fontWeight: FontWeight.w700),
+                      ),
+                      onPressed: _groupId == null ? null : () => showCallSheet(context, _groupId!),
+                      child: const Column(mainAxisSize: MainAxisSize.min, children: [
+                        Icon(Icons.call, size: 30),
+                        SizedBox(height: 4),
+                        Text('Gọi cho con', textAlign: TextAlign.center),
+                      ]),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm + 4),
+                  Expanded(
+                    child: OutlinedButton(
+                      key: const Key('unwell'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.danger,
+                        side: BorderSide(color: AppColors.danger, width: 2.5),
+                        minimumSize: const Size.fromHeight(88),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+                        textStyle: text.titleMedium?.copyWith(fontSize: 22, fontWeight: FontWeight.w700),
+                      ),
+                      onPressed: _unwell,
+                      child: const Column(mainAxisSize: MainAxisSize.min, children: [
+                        Icon(Icons.favorite_border, size: 30),
+                        SizedBox(height: 4),
+                        Text('Tôi thấy mệt', textAlign: TextAlign.center),
+                      ]),
+                    ),
+                  ),
+                ]),
+              ),
+            ]),
           ),
         );
       }),
@@ -309,6 +371,7 @@ void _showDose(BuildContext context, DoseSlot slot) {
   );
 }
 
+/// The next dose: big, outlined in blue, with the pill photo. Tap for details and "Nghe đọc".
 class _NextCard extends StatelessWidget {
   const _NextCard({required this.slot, required this.now});
 
@@ -319,33 +382,132 @@ class _NextCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
     final m = slot.med;
-    final (label, icon, color, soft) = statusLook(slot.statusAt(now));
-    return Card(
-      color: soft == AppColors.surface ? AppColors.navySoft : soft,
+    final due = slot.statusAt(now) == DoseStatus.due;
+    return Material(
+      color: AppColors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        side: BorderSide(color: AppColors.primary, width: 2),
+      ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         onTap: () => _showDose(context, slot),
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
+          padding: const EdgeInsets.all(AppSpacing.md + 4),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(due ? 'Đến giờ uống: ${hhmm(slot.at)}' : 'Tiếp theo: ${hhmm(slot.at)}',
+                style: text.titleMedium?.copyWith(color: AppColors.primary, fontSize: 22)),
+            const SizedBox(height: AppSpacing.sm + 4),
             Row(children: [
-              Icon(icon, color: color, size: 32),
-              const SizedBox(width: AppSpacing.sm),
-              Text('${hhmm(slot.at)} · $label', style: text.titleMedium?.copyWith(color: color)),
-            ]),
-            const SizedBox(height: AppSpacing.sm),
-            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              m.photos.isEmpty ? const NoMedPhoto(size: 120) : LocalMedPhoto(path: m.photos.first, size: 120),
+              m.photos.isEmpty ? const NoMedPhoto(size: 96) : LocalMedPhoto(path: m.photos.first, size: 96),
               const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(m.name, style: text.titleLarge),
-                  if (m.dosage != null) Text(m.dosage!, style: text.bodyLarge),
-                  if (m.description.isNotEmpty) Text(m.description, style: text.bodyLarge?.copyWith(color: AppColors.muted)),
+                  Text(m.name, style: text.headlineSmall?.copyWith(fontSize: 30, height: 1.15)),
+                  if (m.dosage != null) Text(m.dosage!, style: text.bodyLarge?.copyWith(fontSize: 22)),
+                  if (m.description.isNotEmpty)
+                    Text(m.description, style: text.bodyLarge?.copyWith(color: AppColors.muted, fontSize: 20)),
                 ]),
               ),
             ]),
           ]),
+        ),
+      ),
+    );
+  }
+}
+
+/// A dose whose alarm went quiet without an answer. The elder can still answer it here.
+class _WaitingCard extends StatelessWidget {
+  const _WaitingCard({required this.minute, required this.slots, required this.onTaken, required this.onNotTaken});
+
+  final DateTime minute;
+  final List<DoseSlot> slots;
+  final VoidCallback onTaken;
+  final VoidCallback onNotTaken;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.md + 4),
+      decoration: BoxDecoration(
+        color: AppColors.warnSoft,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: AppColors.warn, width: 2),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Row(children: [
+          Icon(Icons.notifications_paused_outlined, color: AppColors.warn, size: 30),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text('Thuốc ${hhmm(minute)} chưa trả lời',
+                style: text.titleMedium?.copyWith(fontSize: 22, color: AppColors.ink)),
+          ),
+        ]),
+        const SizedBox(height: AppSpacing.xs),
+        Text(slots.map((d) => [d.med.name, d.med.dosage].whereType<String>().join(' ')).join(', '),
+            style: text.bodyLarge),
+        const SizedBox(height: AppSpacing.md),
+        FilledButton.icon(
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColors.ok,
+            foregroundColor: AppColors.onAccent,
+            minimumSize: const Size.fromHeight(80),
+            textStyle: text.titleMedium?.copyWith(fontSize: 24, fontWeight: FontWeight.w700),
+          ),
+          onPressed: onTaken,
+          icon: const Icon(Icons.check, size: 32),
+          label: const Text('ĐÃ UỐNG RỒI'),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        OutlinedButton(
+          style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(64)),
+          onPressed: onNotTaken,
+          child: const Text('Chưa uống được'),
+        ),
+      ]),
+    );
+  }
+}
+
+/// "07:30 · Đã uống thuốc" in green (or amber for "chưa uống được").
+class _DoneRow extends StatelessWidget {
+  const _DoneRow({required this.ok, required this.label, this.onTap});
+
+  final bool ok;
+  final String label;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final color = ok ? AppColors.ok : AppColors.warn;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm + 2),
+      child: Material(
+        color: ok ? AppColors.okSoft : AppColors.warnSoft,
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: onTap,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 64),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+              child: Row(children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                  child: Icon(ok ? Icons.check : Icons.priority_high, color: AppColors.onAccent, size: 24),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(child: Text(label, style: text.titleMedium?.copyWith(fontSize: 21))),
+              ]),
+            ),
+          ),
         ),
       ),
     );
@@ -376,7 +538,7 @@ class _ExerciseRow extends StatelessWidget {
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Icon(Icons.directions_walk, size: 56, color: AppColors.ok),
+            Icon(Icons.directions_walk, size: 56, color: AppColors.ok),
             const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -402,46 +564,6 @@ class _ExerciseRow extends StatelessWidget {
             ),
           ],
         ]),
-      ),
-    );
-  }
-}
-
-class _DoseCard extends StatelessWidget {
-  const _DoseCard({required this.slot, required this.now});
-
-  final DoseSlot slot;
-  final DateTime now;
-
-  @override
-  Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    final m = slot.med;
-    final (label, icon, color, soft) = statusLook(slot.statusAt(now));
-    return Card(
-      color: soft,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        onTap: () => _showDose(context, slot),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            m.photos.isEmpty ? const NoMedPhoto(size: 80) : LocalMedPhoto(path: m.photos.first, size: 80),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(hhmm(slot.at), style: text.titleLarge?.copyWith(color: color, fontWeight: FontWeight.w800)),
-                Text(m.name, style: text.titleMedium),
-                if (m.dosage != null) Text(m.dosage!, style: text.bodyLarge),
-                Row(children: [
-                  Icon(icon, color: color, size: 24),
-                  const SizedBox(width: AppSpacing.xs),
-                  Flexible(child: Text(label, style: text.bodyLarge?.copyWith(color: color, fontWeight: FontWeight.w700))),
-                ]),
-              ]),
-            ),
-          ]),
-        ),
       ),
     );
   }

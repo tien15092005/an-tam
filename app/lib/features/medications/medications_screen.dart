@@ -71,7 +71,7 @@ class MedicationsScreen extends ConsumerWidget {
               if (!isOwner && group != null)
                 const Padding(
                   padding: EdgeInsets.only(bottom: AppSpacing.md),
-                  child: Text('Chỉ trưởng nhóm đặt và sửa lịch thuốc. Bạn xem được và bàn trong chat của nhóm.'),
+                  child: Text('Chỉ người đặt lịch thuốc trong gia đình mới thêm, sửa được. Bạn xem được lịch và nhận báo cáo.'),
                 ),
               if (logs.isNotEmpty) ...[
                 Text('Hôm nay bố mẹ đã báo', style: Theme.of(context).textTheme.titleMedium),

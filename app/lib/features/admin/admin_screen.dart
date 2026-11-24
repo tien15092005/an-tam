@@ -16,7 +16,7 @@ final _searchProvider = FutureProvider.autoDispose.family<List<Map<String, dynam
 
 const _typeLabel = {'CAREGIVER': 'Người con', 'ELDER': 'Người già', 'SYSTEM_ADMIN': 'Quản trị'};
 
-/// System admin (plan §10): totals, search, lock and unlock. Nothing here shows medicines, photos or chat.
+/// System admin (plan §10): totals, search, lock and unlock. Nothing here shows medicines or photos.
 class AdminScreen extends ConsumerStatefulWidget {
   const AdminScreen({super.key});
 

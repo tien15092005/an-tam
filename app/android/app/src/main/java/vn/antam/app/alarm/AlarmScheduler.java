@@ -23,8 +23,28 @@ public final class AlarmScheduler {
     }
 
     public static void schedule(Context context, int id, long triggerAtMillis, String title, String speech) {
-        AlarmStore.put(context, new AlarmStore.Alarm(id, triggerAtMillis, title, speech));
+        schedule(context, id, triggerAtMillis, title, speech, 1);
+    }
+
+    public static void schedule(Context context, int id, long triggerAtMillis, String title, String speech, int attempt) {
+        AlarmStore.put(context, new AlarmStore.Alarm(id, triggerAtMillis, title, speech, attempt));
         arm(context, id, triggerAtMillis);
+    }
+
+    /**
+     * Reminders after a schedule alarm (snoozes and automatic repeats) use this offset below the schedule
+     * range, so a re-sync never cancels them and the id still decodes to the dose minute.
+     * Must match _snoozeOffset in alarm_screen.dart.
+     */
+    public static final int FOLLOW_UP_OFFSET = 50_000_000;
+
+    static int followUpId(int id) {
+        return id >= SCHEDULE_ID_BASE ? id - FOLLOW_UP_OFFSET : id;
+    }
+
+    /** Highest attempt among the alarms ringing now; 0 when nothing rings. */
+    public static int ringingAttempt(Context context) {
+        return ringingIds(context).isEmpty() ? 0 : AlarmStore.ringingAttempt(context);
     }
 
     /** Ids from here up belong to the medication schedule; lower ids are one-off alarms such as snoozes. */

@@ -184,9 +184,9 @@ class _ItemCard extends StatelessWidget {
   InputDecoration _deco(String label, bool unsure) => InputDecoration(
         labelText: label,
         helperText: unsure ? 'Giấy tờ không ghi rõ, hãy tự điền' : null,
-        helperStyle: const TextStyle(color: AppColors.warn),
+        helperStyle: TextStyle(color: AppColors.warn),
         enabledBorder: unsure
-            ? OutlineInputBorder(borderSide: const BorderSide(color: AppColors.warn, width: 2), borderRadius: BorderRadius.circular(AppRadius.sm))
+            ? OutlineInputBorder(borderSide: BorderSide(color: AppColors.warn, width: 2), borderRadius: BorderRadius.circular(AppRadius.sm))
             : null,
       );
 

@@ -25,7 +25,7 @@ import vn.antam.user.UserRepository;
 
 /**
  * System admin (plan §10): totals, account search, lock / unlock. Deliberately no endpoint here reads
- * medicines, photos, chat or dose history, and admins are not group members, so the group endpoints answer 404.
+ * medicines, photos or dose history, and admins are not group members, so the group endpoints answer 404.
  */
 @RestController
 @RequestMapping("/api/admin")

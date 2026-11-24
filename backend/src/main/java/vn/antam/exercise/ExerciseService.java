@@ -43,12 +43,11 @@ public class ExerciseService {
     private final FamilyGroupRepository groups;
     private final AuditLogRepository audit;
     private final Notifier notifier;
-    private final vn.antam.chat.ChatService chat;
     private final Clock clock;
 
     public ExerciseService(ExerciseRepository exercises, ExerciseLogRepository logs, GroupAccess access,
                            GroupMemberRepository members, ElderProfileRepository elders, FamilyGroupRepository groups,
-                           AuditLogRepository audit, Notifier notifier, vn.antam.chat.ChatService chat, Clock clock) {
+                           AuditLogRepository audit, Notifier notifier, Clock clock) {
         this.exercises = exercises;
         this.logs = logs;
         this.access = access;
@@ -57,7 +56,6 @@ public class ExerciseService {
         this.groups = groups;
         this.audit = audit;
         this.notifier = notifier;
-        this.chat = chat;
         this.clock = clock;
     }
 
@@ -181,7 +179,6 @@ public class ExerciseService {
                 "{\"title\":\"" + e.getTitle().replace("\\", "\\\\").replace("\"", "\\\"") + "\"}", now));
         notifier.toUser(e.getElderUserId(), Notifier.Kind.SCHEDULE_CHANGED, groupId, e.getId(),
                 "schedule:" + groupId + ":" + group.getScheduleVersion() + ":" + e.getElderUserId(), null, null, false);
-        chat.system(groupId, chat.nameOf(userId) + " " + verb(action) + " lịch tập " + e.getTitle(), null);
     }
 
     private Exercise inGroup(Long groupId, Long id) {

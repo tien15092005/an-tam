@@ -242,3 +242,27 @@ ScheduledAlarm _alarmFor(String callName, DateTime at, List<ElderMed> meds, List
     speech: speechFor(callName, meds) + (exercises.isEmpty ? '' : exerciseSpeechFor(callName, exercises, afterMeds: true)),
   );
 }
+
+/// Schedule alarms of the last few hours whose doses (and exercises) all have an answer, so their
+/// automatic re-rings can be dropped, e.g. after a caregiver marked the dose from their phone.
+List<int> answeredAlarmIds(ElderSchedule s, DateTime now) {
+  final since = now.subtract(const Duration(hours: 2));
+  final minutes = <DateTime>{
+    for (final d in s.dosesOn(now)) if (!d.at.isBefore(since) && !d.at.isAfter(now)) d.at,
+    for (final e in s.exercisesOn(now)) if (!e.at.isBefore(since) && !e.at.isAfter(now)) e.at,
+  };
+  return [
+    for (final m in minutes)
+      if (s.medsAt(m).every((x) => s.logs.containsKey(doseKey(x.id, m))) &&
+          s.exercisesAt(m).every((e) => s.exercisesDone.contains(exerciseKey(e.id, m))))
+        alarmIdForMinute(m),
+  ]..sort();
+}
+
+/// Doses from earlier today that still wait for the elder's answer (the alarm went quiet), oldest first.
+List<DoseSlot> unansweredDoses(ElderSchedule s, DateTime now) => [
+      for (final d in s.dosesOn(now))
+        if (d.at.isBefore(now) && d.logStatus == null && d.statusAt(now) != DoseStatus.notApplicable &&
+            now.difference(d.at) >= const Duration(minutes: 2))
+          d,
+    ];

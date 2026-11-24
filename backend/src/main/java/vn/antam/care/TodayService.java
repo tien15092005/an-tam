@@ -69,7 +69,6 @@ public class TodayService {
     private final UserRepository users;
     private final AuditLogRepository audit;
     private final Notifier notifier;
-    private final vn.antam.chat.ChatService chat;
     private final ExerciseRepository exercisesRepo;
     private final ExerciseLogRepository exerciseLogs;
     private final Clock clock;
@@ -78,7 +77,7 @@ public class TodayService {
                         AlertRepository alerts, ElderProfileRepository elders, GroupMemberRepository members,
                         GroupAccess access, UserRepository users, AuditLogRepository audit, Notifier notifier,
                         ExerciseRepository exercisesRepo, ExerciseLogRepository exerciseLogs,
-                        vn.antam.chat.ChatService chat, Clock clock) {
+                        Clock clock) {
         this.medications = medications;
         this.images = images;
         this.doseLogs = doseLogs;
@@ -89,7 +88,6 @@ public class TodayService {
         this.users = users;
         this.audit = audit;
         this.notifier = notifier;
-        this.chat = chat;
         this.exercisesRepo = exercisesRepo;
         this.exerciseLogs = exerciseLogs;
         this.clock = clock;
@@ -294,8 +292,6 @@ public class TodayService {
             notifier.toCaregivers(groupId, Notifier.Kind.DOSE_REPORT, marked.getFirst(), key,
                     CareTexts.markedTitle(caregiver, elder.getCallName()),
                     r.scheduledTime() + " · " + String.join(", ", names) + " · đã uống", false, userId);
-            chat.system(groupId, caregiver + " đã đánh dấu giúp: " + elder.getCallName() + " đã uống " + String.join(", ", names)
-                    + " (liều " + r.scheduledTime() + ")", null);
         }
         return new MarkResult(marked, already);
     }
@@ -322,15 +318,17 @@ public class TodayService {
     }
 
     /** A NOT_CONFIRMED alert closes itself once every medicine of that time has an answer. */
-    void resolveNotConfirmedIfAnswered(Long elderUserId, LocalDate date, LocalTime time, Long by, Instant at) {
-        alerts.findByElderUserIdAndKindAndScheduledDateAndScheduledTimeAndResolvedAtIsNull(elderUserId, Alert.Kind.NOT_CONFIRMED,
-                date, time).ifPresent(a -> {
+    /** @return true when an open "chưa xác nhận" alert for that dose was settled by this answer. */
+    boolean resolveNotConfirmedIfAnswered(Long elderUserId, LocalDate date, LocalTime time, Long by, Instant at) {
+        return alerts.findByElderUserIdAndKindAndScheduledDateAndScheduledTimeAndResolvedAtIsNull(elderUserId,
+                Alert.Kind.NOT_CONFIRMED, date, time).map(a -> {
             boolean allAnswered = medications.overlapping(elderUserId, date, date).stream()
                     .filter(m -> ScheduleExpander.occurrences(m.timeList(), m.getDaysOfWeek(), m.getStartDate(), m.getEndDate(),
                             date, date).contains(date.atTime(time)))
                     .allMatch(m -> doseLogs.findByMedicationIdAndScheduledDateAndScheduledTime(m.getId(), date, time).isPresent());
             if (allAnswered) a.resolve(by, at);
-        });
+            return allAnswered;
+        }).orElse(false);
     }
 
     // ---- helpers

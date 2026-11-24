@@ -56,7 +56,7 @@ class _ElderPairScreenState extends ConsumerState<ElderPairScreen> {
               const SizedBox(height: AppSpacing.md),
               Text(
                 'Trên iPhone, ứng dụng không thể đổ chuông và đọc tên thuốc liên tục khi đã đóng. '
-                'Các con vẫn dùng iPhone bình thường để theo dõi, chat và đặt lịch.',
+                'Các con vẫn dùng iPhone bình thường để theo dõi và đặt lịch.',
                 style: text.bodyLarge,
               ),
             ]),
@@ -89,7 +89,7 @@ class _ElderPairScreenState extends ConsumerState<ElderPairScreen> {
               const SizedBox(height: AppSpacing.lg),
               FilledButton(
                 onPressed: _busy || _code.text.length != 6 ? null : _submit,
-                child: _busy ? const CircularProgressIndicator(color: Colors.white) : const Text('Vào ứng dụng'),
+                child: _busy ? CircularProgressIndicator(color: AppColors.onAccent) : const Text('Vào ứng dụng'),
               ),
             ],
           ),

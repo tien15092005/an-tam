@@ -2,7 +2,8 @@
 /// both pass the cases in shared/test-vectors/dose-status.json.
 enum DoseStatus { upcoming, due, missed, taken, notTaken, skipped, notApplicable }
 
-const doseGrace = Duration(minutes: 60);
+/// After 3 alarm attempts (at 0, 10 and 20 minutes) the phone goes quiet and caregivers are told.
+const doseGrace = Duration(minutes: 30);
 
 /// [due], [now] and [createdAt] are the elder's local wall-clock times.
 /// [logStatus] is TAKEN / NOT_TAKEN / SKIPPED, or null when nothing was recorded.

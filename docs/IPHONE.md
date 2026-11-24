@@ -6,7 +6,7 @@
 
 | Vai trò | Trên iPhone |
 |---|---|
-| **Người con** (trưởng nhóm, thành viên) | **Dùng được** sau khi build: đăng nhập, nhóm, tab Hôm nay, đánh dấu giúp, lịch, thuốc và ảnh, Quét OCR, chat, cài đặt |
+| **Người con** (trưởng nhóm, thành viên) | **Dùng được** sau khi build: đăng nhập, nhóm, tab Hôm nay, đánh dấu giúp, lịch, thuốc và ảnh, Quét OCR, cài đặt |
 | **Người già** | **Không hỗ trợ.** Màn hình ghép máy trên iPhone hiện "Máy của bố mẹ cần là điện thoại Android" |
 | **Admin** | Dùng được (chỉ là màn hình số liệu) |
 
@@ -55,7 +55,7 @@ iPhone chỉ gọi được địa chỉ HTTPS (đường hầm), không gọi `
 | Màn hình | Kiểm tra |
 |---|---|
 | Chào, đăng nhập, đồng ý | Hiện đúng, chuyển màn hình được (lỗi đã sửa: router từng gọi kênh báo thức không tồn tại trên iOS) |
-| Hôm nay, Lịch, Nhóm, Cài đặt | Như Android; chat kết nối "trực tiếp" qua `wss://` của đường hầm |
+| Hôm nay, Lịch, Cài đặt | Như Android |
 | Thêm thuốc, chụp ảnh | iOS hỏi quyền Camera với lời giải thích tiếng Việt |
 | Quét OCR | ML Kit đọc chữ trên máy; cắt ảnh bằng TOCropViewController |
 | "Tôi là bố / mẹ" | Hiện thông báo cần điện thoại Android |

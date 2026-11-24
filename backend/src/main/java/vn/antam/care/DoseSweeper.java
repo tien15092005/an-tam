@@ -33,7 +33,7 @@ import vn.antam.schedule.DoseStatus;
 import vn.antam.schedule.ScheduleExpander;
 
 /**
- * Raises NOT_CONFIRMED when a dose time is more than 60 minutes past with no answer (plan §9). Runs every
+ * Raises NOT_CONFIRMED when a dose time is more than 30 minutes past with no answer (plan §9). Runs every
  * minute and looks back {@link #LOOK_BACK}, so doses missed while the laptop was off are caught up on start.
  * The elder's phone keeps ringing regardless: this only tells the caregivers.
  */
@@ -51,11 +51,9 @@ public class DoseSweeper {
     private final DoseLogRepository doseLogs;
     private final JdbcTemplate jdbc;
     private final Notifier notifier;
-    private final vn.antam.chat.ChatService chat;
 
     public DoseSweeper(ElderProfileRepository elders, GroupMemberRepository members, FamilyGroupRepository groups,
-                       MedicationRepository medications, DoseLogRepository doseLogs, JdbcTemplate jdbc, Notifier notifier,
-                       vn.antam.chat.ChatService chat) {
+                       MedicationRepository medications, DoseLogRepository doseLogs, JdbcTemplate jdbc, Notifier notifier) {
         this.elders = elders;
         this.members = members;
         this.groups = groups;
@@ -63,7 +61,6 @@ public class DoseSweeper {
         this.doseLogs = doseLogs;
         this.jdbc = jdbc;
         this.notifier = notifier;
-        this.chat = chat;
     }
 
     /** @return ids of the alerts created by this run */
@@ -123,8 +120,6 @@ public class DoseSweeper {
                 shape.aboutDose(null, null, names, e.getKey().toLocalDate(), e.getKey().toLocalTime());
                 notifier.toCaregivers(elder.getGroupId(), Notifier.Kind.ALERT, id, "alert:" + id,
                         CareTexts.alertTitle(elder.getCallName(), Alert.Kind.NOT_CONFIRMED), CareTexts.alertBody(shape), true, null);
-                chat.system(elder.getGroupId(), CareTexts.alertTitle(elder.getCallName(), Alert.Kind.NOT_CONFIRMED) + " " + names
-                        + " (liều " + CareTexts.hhmm(e.getKey().toLocalTime()) + ")", id);
             }
         }
         return created;

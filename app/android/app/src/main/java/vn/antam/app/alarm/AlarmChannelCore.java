@@ -39,10 +39,11 @@ public final class AlarmChannelCore {
                 Number at = call.argument("triggerAtMillis");
                 String title = call.argument("title");
                 String speech = call.argument("speech");
+                Integer attempt = call.argument("attempt");
                 if (id == null || at == null || title == null || speech == null) {
                     result.error("bad_args", "id, triggerAtMillis, title, speech are required", null);
                 } else {
-                    AlarmScheduler.schedule(context, id, at.longValue(), title, speech);
+                    AlarmScheduler.schedule(context, id, at.longValue(), title, speech, attempt == null ? 1 : attempt);
                     result.success(null);
                 }
                 return true;
@@ -80,6 +81,16 @@ public final class AlarmChannelCore {
             }
             case "ringingIds":
                 result.success(AlarmScheduler.ringingIds(context));
+                return true;
+            case "answered": {
+                // Doses answered (by the elder, or marked by a caregiver): no automatic re-ring for them.
+                List<Integer> ids = call.argument("ids");
+                if (ids != null) for (Integer id : ids) AlarmService.cancelFollowUp(context, id);
+                result.success(null);
+                return true;
+            }
+            case "ringingAttempt":
+                result.success(AlarmScheduler.ringingAttempt(context));
                 return true;
             case "backgroundSync": {
                 Boolean enabled = call.argument("enabled");

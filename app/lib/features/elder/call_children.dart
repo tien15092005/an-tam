@@ -57,7 +57,7 @@ class UnwellHelp extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.md),
           child: Row(children: [
-            const Icon(Icons.emergency, color: AppColors.danger, size: 40),
+            Icon(Icons.emergency, color: AppColors.danger, size: 40),
             const SizedBox(width: AppSpacing.md),
             Expanded(child: Text('Nếu nguy cấp, gọi cấp cứu 115.', style: text.titleMedium)),
           ]),
