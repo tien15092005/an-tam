@@ -222,3 +222,6 @@ Trước đây máy kêu và đọc liên tục tới khi có người bấm, v�
 - Kiểu chữ Lexend (thiết kế để dễ đọc, đủ dấu tiếng Việt) thay Be Vietnam Pro, đóng gói trong app.
 - "Tôi thấy không khỏe" rút gọn thành "Tôi thấy mệt", vẫn gửi cảnh báo `UNWELL`.
 
+## Chuông dự phòng khi thiếu giọng tiếng Việt (28/11/2026)
+
+Khi thử trên máy thật, máy không có giọng tiếng Việt nên báo thức chỉ rung và hiện màn hình, không có tiếng. Giờ máy phát chuông báo thức mặc định (lặp lại, luồng báo thức) thay cho giọng đọc, tạm dừng khi người già đang trả lời bằng giọng nói, và tắt cùng lúc với báo thức. Vẫn nên cài giọng tiếng Việt (Kiểm tra máy nhắc mục này) để máy đọc tên thuốc.

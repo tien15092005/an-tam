@@ -31,6 +31,7 @@ import vn.antam.app.MainActivity;
  * <p>
  * A ring lasts at most {@link #RING_LIMIT_MS}. Unanswered, the phone goes quiet and rings again
  * {@link #RETRY_AFTER_MS} after the ring started, up to {@link #MAX_ATTEMPTS} rings in all (snoozes count too).
+ * Without a Vietnamese voice it plays the phone's alarm sound instead of reading aloud.
  * After the last one it stays quiet; caregivers are told by the server 30 minutes after the dose time
  * (SKILL_AN_TAM.md §9). A quiet notification tells the elder the dose still waits for an answer.
  */
@@ -62,6 +63,9 @@ public class AlarmService extends Service {
     private PowerManager.WakeLock wakeLock;
     private final Runnable speakAgain = this::speak;
     private final Runnable giveUp = this::ringTimedOut;
+    /** The phone's own alarm sound, used when there is no Vietnamese voice to read the reminder. */
+    private android.media.MediaPlayer tone;
+    private final Runnable resumeTone = this::resumeFallbackTone;
     private long ringStartedAt;
     /** The alarms of this ring (several when one joins another), to ring them again if unanswered. */
     private final java.util.Map<Integer, AlarmStore.Alarm> ringingNow = new java.util.LinkedHashMap<>();
@@ -101,9 +105,15 @@ public class AlarmService extends Service {
             return START_NOT_STICKY;
         }
         if (ACTION_HOLD.equals(intent.getAction())) {
+            long ms = Math.min(intent.getLongExtra("ms", 8000), 30_000);
             handler.removeCallbacks(speakAgain);
+            handler.removeCallbacks(resumeTone);
             if (tts != null) tts.stop();
-            if (alarmId >= 0) handler.postDelayed(speakAgain, Math.min(intent.getLongExtra("ms", 8000), 30_000));
+            if (tone != null && tone.isPlaying()) {
+                tone.pause();
+                handler.postDelayed(resumeTone, ms);
+            }
+            if (alarmId >= 0) handler.postDelayed(speakAgain, ms);
             return START_NOT_STICKY;
         }
         alarmId = intent.getIntExtra(AlarmScheduler.EXTRA_ALARM_ID, -1);
@@ -195,6 +205,7 @@ public class AlarmService extends Service {
             ttsReady = status == TextToSpeech.SUCCESS;
             if (!ttsReady) {
                 Log.w(TAG, "TTS init failed: " + status);
+                startFallbackTone();
                 return;
             }
             int lang = tts.setLanguage(new Locale("vi", "VN"));
@@ -229,8 +240,10 @@ public class AlarmService extends Service {
         // Without a Vietnamese voice the text would be read as gibberish; keep ringing by vibration
         // and the on-screen alarm instead (plan §9), and retry later in case data gets installed.
         if (!vietnameseVoice) {
-            Log.w(TAG, "no Vietnamese voice, skipping speech (read " + readCount + ")");
-            scheduleNextRead();
+            // Reading Vietnamese with another language's voice is gibberish: ring the phone's alarm sound instead,
+            // so an elder who does not see the screen still hears something.
+            Log.w(TAG, "no Vietnamese voice, ringing the alarm sound instead");
+            startFallbackTone();
             return;
         }
         readCount++;
@@ -238,6 +251,45 @@ public class AlarmService extends Service {
         params.putInt(TextToSpeech.Engine.KEY_PARAM_STREAM, android.media.AudioManager.STREAM_ALARM);
         tts.speak(speech, TextToSpeech.QUEUE_FLUSH, params, "alarm-" + alarmId + "-" + readCount);
         Log.i(TAG, "speaking read #" + readCount);
+    }
+
+    private void startFallbackTone() {
+        if (alarmId < 0 || (tone != null && tone.isPlaying())) return;
+        android.net.Uri uri = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_ALARM);
+        if (uri == null) uri = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_RINGTONE);
+        if (uri == null) uri = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION);
+        if (uri == null) return;
+        try {
+            releaseTone();
+            tone = new android.media.MediaPlayer();
+            tone.setAudioAttributes(new AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build());
+            tone.setDataSource(this, uri);
+            tone.setLooping(true);
+            tone.prepare();
+            tone.start();
+        } catch (Exception e) {
+            Log.w(TAG, "fallback alarm sound failed: " + e.getMessage());
+            releaseTone();
+        }
+    }
+
+    private void resumeFallbackTone() {
+        if (alarmId >= 0 && tone != null && !tone.isPlaying()) tone.start();
+    }
+
+    private void releaseTone() {
+        handler.removeCallbacks(resumeTone);
+        if (tone == null) return;
+        try {
+            tone.stop();
+        } catch (IllegalStateException ignored) {
+            // Not started yet.
+        }
+        tone.release();
+        tone = null;
     }
 
     private void scheduleNextRead() {
@@ -323,6 +375,7 @@ public class AlarmService extends Service {
         ringingNow.clear();
         handler.removeCallbacks(giveUp);
         handler.removeCallbacks(speakAgain);
+        releaseTone();
         if (tts != null) tts.stop();
         Vibrator v = getSystemService(Vibrator.class);
         if (v != null) v.cancel();
@@ -337,6 +390,7 @@ public class AlarmService extends Service {
         running = false;
         handler.removeCallbacks(giveUp);
         handler.removeCallbacks(speakAgain);
+        releaseTone();
         if (tts != null) tts.shutdown();
         if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
         super.onDestroy();
