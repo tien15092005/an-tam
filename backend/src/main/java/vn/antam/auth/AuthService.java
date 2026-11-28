@@ -42,7 +42,10 @@ public class AuthService {
     }
 
     @Transactional
-    public TokenService.TokenPair register(String email, String password, String displayName, String phone, String deviceName) {
+    public TokenService.TokenPair register(String email, String password, String displayName, String phone, String deviceName,
+                                           String ip) {
+        limiter.check("register:ip:" + ip, 10, Duration.ofHours(1));
+        requirePasswordFits(password);
         String normalized = email.trim().toLowerCase(java.util.Locale.ROOT);
         if (users.existsByEmailIgnoreCase(normalized)) {
             throw ApiException.conflict("email_taken", "Email này đã được đăng ký.");
@@ -55,13 +58,17 @@ public class AuthService {
     public TokenService.TokenPair login(String email, String password, String deviceName, String ip) {
         String normalized = email.trim().toLowerCase(java.util.Locale.ROOT);
         limiter.check("login:ip:" + ip, 20, WINDOW);
-        limiter.check("login:email:" + normalized, 8, WINDOW);
+        // Per email *and* address: a stranger who knows someone's email cannot lock them out from elsewhere.
+        // A generous per-email ceiling still stops a slow attack spread over many addresses.
+        limiter.check("login:email-ip:" + normalized + "|" + ip, 8, WINDOW);
+        limiter.check("login:email:" + normalized, 100, WINDOW);
+        if (!fitsBcrypt(password)) throw new ApiException(HttpStatus.UNAUTHORIZED, "bad_credentials", "Sai email hoặc mật khẩu.");
         User user = users.findByEmailIgnoreCase(normalized)
                 .filter(u -> u.getAccountType() != AccountType.ELDER)
                 .filter(u -> passwordEncoder.matches(password, u.getPasswordHash()))
                 .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "bad_credentials", "Sai email hoặc mật khẩu."));
         if (user.isDisabled()) throw new ApiException(HttpStatus.FORBIDDEN, "account_disabled", "Tài khoản đã bị khóa.");
-        limiter.reset("login:email:" + normalized);
+        limiter.reset("login:email-ip:" + normalized + "|" + ip);
         return tokens.issue(user, deviceName);
     }
 
@@ -89,6 +96,17 @@ public class AuthService {
         // Only one phone per elder: pairing a new one signs out the old one.
         tokens.revokeAll(elder.getId());
         return tokens.issue(elder, deviceName);
+    }
+
+    /** BCrypt reads at most 72 bytes; Vietnamese letters take 2–3 bytes each, so count bytes, not characters. */
+    static boolean fitsBcrypt(String password) {
+        return password != null && password.getBytes(java.nio.charset.StandardCharsets.UTF_8).length <= 72;
+    }
+
+    static void requirePasswordFits(String password) {
+        if (!fitsBcrypt(password)) {
+            throw ApiException.badRequest("password_too_long", "Mật khẩu quá dài. Hãy dùng mật khẩu ngắn hơn (khoảng 30 ký tự).");
+        }
     }
 
     private static String blankToNull(String s) {

@@ -158,6 +158,21 @@ public class GroupService {
         users.findById(elderUserId).orElseThrow().rename(r.callName().trim(), blankToNull(r.phone()));
     }
 
+    /**
+     * A parent's phone was lost: end its session and stop its notifications now. Unused pairing codes stop
+     * working too. The parent's data stays; pairing a new phone brings it back.
+     */
+    @Transactional
+    public void signOutElderPhone(Long userId, Long groupId, Long elderUserId) {
+        access.requireOwner(groupId, userId);
+        elderInGroup(groupId, elderUserId);
+        Instant now = clock.instant();
+        invites.findByKindAndElderUserIdAndUsedAtIsNullAndExpiresAtAfter(Invite.Kind.ELDER_DEVICE, elderUserId, now)
+                .forEach(i -> i.expire(now));
+        tokens.revokeAll(elderUserId);
+        eraser.forgetDevices(elderUserId);
+    }
+
     /** New 6-digit code for the elder's phone. Earlier unused codes for that elder stop working. */
     @Transactional
     public CodeResponse createPairingCode(Long userId, Long groupId, Long elderUserId) {
@@ -166,6 +181,7 @@ public class GroupService {
         Instant now = clock.instant();
         invites.findByKindAndElderUserIdAndUsedAtIsNullAndExpiresAtAfter(Invite.Kind.ELDER_DEVICE, elderUserId, now)
                 .forEach(i -> i.expire(now));
+        invites.lockCodeCreation();
         String code;
         String hash;
         do {

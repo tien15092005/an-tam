@@ -84,4 +84,27 @@ void main() {
       }
     }
   });
+
+  test('a phone whose clock zone differs from the profile is flagged', () {
+    final now = DateTime.now();
+    final same = ElderSchedule(callName: '', version: 1, meds: const [], profileUtcOffsetMinutes: now.timeZoneOffset.inMinutes);
+    final other = ElderSchedule(callName: '', version: 1, meds: const [], profileUtcOffsetMinutes: now.timeZoneOffset.inMinutes + 420);
+    const unknown = ElderSchedule(callName: '', version: 1, meds: []);
+    expect(same.clockZoneDiffers(now), isFalse);
+    expect(other.clockZoneDiffers(now), isTrue);
+    expect(unknown.clockZoneDiffers(now), isFalse); // not synced with a new server yet: no false alarm
+    expect(other.copyWith(offline: true).clockZoneDiffers(now), isTrue);
+  });
+
+  test('a low alarm volume makes the phone not ready', () {
+    final quiet = AlarmReadiness.fromMap(const {
+      'notifications': true, 'exactAlarms': true, 'fullScreen': true, 'batteryUnrestricted': true,
+      'vietnameseVoice': true, 'alarmVolume': false,
+    });
+    expect(quiet.alarmsReady, isFalse);
+    final oldBuild = AlarmReadiness.fromMap(const {
+      'notifications': true, 'exactAlarms': true, 'fullScreen': true, 'batteryUnrestricted': true, 'vietnameseVoice': true,
+    });
+    expect(oldBuild.alarmsReady, isTrue);
+  });
 }

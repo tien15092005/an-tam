@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -43,9 +43,11 @@ class _IssueQuestionScreenState extends ConsumerState<IssueQuestionScreen> {
   void initState() {
     super.initState();
     for (final s in const [0, 40, 80]) {
-      _timers.add(Timer(Duration(seconds: s), () {
-        if (!_answered) AlarmChannel.speak(_question).catchError((_) {});
-      }));
+      _timers.add(
+        Timer(Duration(seconds: s), () {
+          if (!_answered) AlarmChannel.speak(_question).catchError((_) {});
+        }),
+      );
     }
     _timers.add(Timer(Outbox.questionTimeout, () => _finish(null, noResponse: true)));
   }
@@ -80,9 +82,11 @@ class _IssueQuestionScreenState extends ConsumerState<IssueQuestionScreen> {
     AlarmChannel.speak(thanks).catchError((_) {});
     // Simple answers return home by themselves; for "unwell" or "other" the call buttons stay up.
     if (issue != IssueKind.unwell && issue != IssueKind.otherIssue) {
-      _timers.add(Timer(const Duration(seconds: 6), () {
-        if (mounted) context.go('/');
-      }));
+      _timers.add(
+        Timer(const Duration(seconds: 6), () {
+          if (mounted) context.go('/');
+        }),
+      );
     }
   }
 
@@ -109,20 +113,22 @@ class _IssueQuestionScreenState extends ConsumerState<IssueQuestionScreen> {
     final groupId = ref.watch(meProvider).value?.groups.firstOrNull?.id;
     return Theme(
       data: AppTheme.build(UiDensity.elder),
-      child: Builder(builder: (context) {
-        final text = Theme.of(context).textTheme;
-        return PopScope(
-          canPop: false,
-          child: Scaffold(
-            body: SafeArea(
-              child: ListView(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                children: _answered ? _after(context, text, groupId) : _ask(context, text),
+      child: Builder(
+        builder: (context) {
+          final text = Theme.of(context).textTheme;
+          return PopScope(
+            canPop: false,
+            child: Scaffold(
+              body: SafeArea(
+                child: ListView(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  children: _answered ? _after(context, text, groupId) : _ask(context, text),
+                ),
               ),
             ),
-          ),
-        );
-      }),
+          );
+        },
+      ),
     );
   }
 
@@ -140,11 +146,18 @@ class _IssueQuestionScreenState extends ConsumerState<IssueQuestionScreen> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
         ),
         onPressed: () => _finish(kind),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 34, color: danger ? AppColors.danger : AppColors.warn),
-          const SizedBox(height: AppSpacing.sm),
-          Text(label, textAlign: TextAlign.center, style: TextStyle(fontWeight: danger ? FontWeight.w700 : FontWeight.w600)),
-        ]),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 34, color: danger ? AppColors.danger : AppColors.warn),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontWeight: danger ? FontWeight.w700 : FontWeight.w600),
+            ),
+          ],
+        ),
       );
     }
 
@@ -157,21 +170,33 @@ class _IssueQuestionScreenState extends ConsumerState<IssueQuestionScreen> {
             color: widget.args.taken ? AppColors.okSoft : AppColors.warnSoft,
             borderRadius: BorderRadius.circular(14),
           ),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(widget.args.taken ? Icons.check : Icons.info_outline,
-                color: widget.args.taken ? AppColors.ok : AppColors.warn, size: 24),
-            const SizedBox(width: 6),
-            Text(widget.args.taken ? 'Đã ghi: đã uống' : 'Đã ghi: chưa uống được',
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                widget.args.taken ? Icons.check : Icons.info_outline,
+                color: widget.args.taken ? AppColors.ok : AppColors.warn,
+                size: 24,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                widget.args.taken ? 'Đã ghi: đã uống' : 'Đã ghi: chưa uống được',
                 style: text.bodyLarge?.copyWith(
-                    fontWeight: FontWeight.w600, color: widget.args.taken ? AppColors.ok : AppColors.warn)),
-          ]),
+                  fontWeight: FontWeight.w600,
+                  color: widget.args.taken ? AppColors.ok : AppColors.warn,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
       const SizedBox(height: AppSpacing.md),
       Semantics(
         header: true,
-        child: Text(widget.args.taken ? '${who}có gặp vấn đề gì không ạ?' : 'Vì sao ${who}chưa uống được ạ?',
-            style: text.headlineMedium?.copyWith(fontSize: 34, height: 1.2)),
+        child: Text(
+          widget.args.taken ? '${who}có gặp vấn đề gì không ạ?' : 'Vì sao ${who}chưa uống được ạ?',
+          style: text.headlineMedium?.copyWith(fontSize: 34, height: 1.2),
+        ),
       ),
       const SizedBox(height: AppSpacing.md),
       if (widget.args.taken) ...[
@@ -210,7 +235,9 @@ class _IssueQuestionScreenState extends ConsumerState<IssueQuestionScreen> {
         child: const Text('Vấn đề khác'),
       ),
       const SizedBox(height: AppSpacing.md),
-      Center(child: VoiceButton(onHeard: _onVoice, foreground: AppColors.primary)),
+      Center(
+        child: VoiceButton(onHeard: _onVoice, foreground: AppColors.primary),
+      ),
       const SizedBox(height: AppSpacing.md),
       Text('Các con sẽ nhận được câu trả lời.', textAlign: TextAlign.center, style: text.bodyMedium),
     ];
@@ -219,7 +246,11 @@ class _IssueQuestionScreenState extends ConsumerState<IssueQuestionScreen> {
   List<Widget> _after(BuildContext context, TextTheme text, int? groupId) {
     final issue = _issue;
     return [
-      Icon(issue == null ? Icons.check_circle : Icons.mark_email_read, size: 72, color: issue == null ? AppColors.ok : AppColors.primary),
+      Icon(
+        issue == null ? Icons.check_circle : Icons.mark_email_read,
+        size: 72,
+        color: issue == null ? AppColors.ok : AppColors.primary,
+      ),
       Text(issue == null ? 'Cảm ơn ạ!' : 'Đã báo cho các con', style: text.headlineMedium, textAlign: TextAlign.center),
       const SizedBox(height: AppSpacing.lg),
       if (issue == IssueKind.unwell) UnwellHelp(groupId: groupId),

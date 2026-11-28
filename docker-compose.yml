@@ -1,8 +1,11 @@
 # Run the whole stack on one laptop: docker compose up --build
 # Ports bind to 127.0.0.1 only. The HTTPS tunnel (Phase 1) exposes just the backend.
+# Every service restarts by itself after a crash or when Docker starts again (e.g. after a reboot).
+# Images are pinned by digest (here and in the Dockerfiles) so a rebuild gives the same result.
 services:
   db:
-    image: postgres:18
+    image: postgres:18@sha256:a47637053e65dc7112aeb7353feb8b87954982ad5fd4524908c284d90d71b5e3
+    restart: unless-stopped
     environment:
       POSTGRES_DB: antam
       POSTGRES_USER: antam
@@ -19,6 +22,7 @@ services:
 
   ai-service:
     build: ./ai-service
+    restart: unless-stopped
     environment:
       AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN:?Copy .env.example to .env and set AI_SERVICE_TOKEN}
     healthcheck:
@@ -29,6 +33,14 @@ services:
 
   backend:
     build: ./backend
+    restart: unless-stopped
+    # The image has no curl: ask /api/health over a plain TCP socket with bash.
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /api/health HTTP/1.0\r\nHost: localhost\r\n\r\n' >&3 && grep -q '\"status\":\"UP\"' <&3"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
     environment:
       DB_URL: jdbc:postgresql://db:5432/antam
       DB_USER: antam

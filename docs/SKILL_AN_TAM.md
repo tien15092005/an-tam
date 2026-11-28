@@ -14,7 +14,7 @@ Quy tắc bắt buộc:
 1. **Làm đúng một giai đoạn mỗi lần.** Xong thì dừng, báo cáo theo mục 15 và chờ nhóm xác nhận.
 2. **Đọc tài liệu chính thức trước khi dùng API hoặc thư viện.** Không dựa vào trí nhớ. Dùng bản ổn định mới nhất và khóa phiên bản.
 3. **Chỉ báo "xong" khi đã kiểm chứng.** Ghi rõ thử trên máy ảo hay máy thật, và phần chưa thử được.
-4. **Không xóa bản mẫu cũ** (`mobile/`, `public/`, `server.py`, `prescription.py`, `database/`) trước khi nhóm đồng ý.
+4. **Bản mẫu cũ** (`mobile/`, `public/`, `server.py`, `prescription.py`, `database/`) đã được gỡ khỏi nhánh chính ngày 28/11/2026 theo bản review; xem lại ở tag `archive/prototype-cu`.
 5. **Không đưa bí mật lên Git:** `.env`, `google-services.json`, service account, keystore, JWT secret, ảnh và dữ liệu thật.
 6. **Chỉ commit, push hoặc mở PR khi nhóm yêu cầu.** Commit nhỏ, theo Conventional Commits.
 7. **Không tự đổi công nghệ ở mục 3.** Phát hiện rủi ro nghiêm trọng thì báo cáo kèm bằng chứng và phương án thay thế.

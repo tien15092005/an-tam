@@ -18,7 +18,7 @@
 | `scripts/` | Python, PowerShell | Dữ liệu demo giả, sao lưu |
 | `docs/` | Markdown | Kế hoạch, quyết định, cài đặt, báo cáo kiểm thử, báo cáo môn học |
 
-Các thư mục `mobile/`, `public/`, `server.py`, `prescription.py`, `database/` là **bản mẫu cũ** (Expo + Python), giữ lại cho đến khi nhóm đồng ý lưu trữ.
+Bản mẫu cũ (Expo + Python `server.py`) đã được gỡ khỏi nhánh chính và lưu ở tag `archive/prototype-cu` (`git checkout archive/prototype-cu` để xem lại).
 
 ```mermaid
 flowchart LR

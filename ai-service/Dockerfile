@@ -1,4 +1,5 @@
-FROM python:3.13-slim
+# Pinned by digest so a rebuild gives the same image.
+FROM python:3.13-slim@sha256:168d3a5d10f2152f8e8d77b6843ac82c22a846cfefeef7afdf9aa630404e82a7
 RUN useradd --system --uid 1001 app
 WORKDIR /srv
 COPY requirements.txt .

@@ -1,8 +1,9 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/network/api_client.dart';
 import '../../core/theme/tokens.dart';
+import 'password_screen.dart';
 import 'session.dart';
 
 /// Caregiver sign-in and registration on one screen.
@@ -113,6 +114,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5))
                 : Text(_register ? 'Tạo tài khoản' : 'Đăng nhập'),
           ),
+          if (!_register)
+            TextButton(
+              onPressed: () => Navigator.of(context)
+                  .push(MaterialPageRoute<void>(builder: (_) => const PasswordScreen(reset: true))),
+              child: const Text('Quên mật khẩu?'),
+            ),
         ],
       ),
     );

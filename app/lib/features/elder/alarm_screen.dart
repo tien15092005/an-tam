@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -13,6 +13,8 @@ import '../../reminder/outbox.dart';
 import '../../reminder/schedule_sync.dart';
 import '../medications/med_photo.dart';
 import 'voice_button.dart';
+
+part 'alarm_cards.dart';
 
 /// Snoozes of a schedule alarm live below the schedule range (so a re-sync never cancels them)
 /// but still decode to the same minute.
@@ -177,9 +179,7 @@ class _AlarmScreenState extends ConsumerState<AlarmScreen> {
     setState(() => _busy = true);
     final due = _due(ref.read(elderScheduleProvider).value);
     await AlarmChannel.stopRinging();
-    await AlarmChannel.answered([
-      for (final m in _ids.map(doseMinuteOf).whereType<DateTime>().toSet()) alarmIdForMinute(m),
-    ]);
+    await AlarmChannel.answered([for (final m in _ids.map(doseMinuteOf).whereType<DateTime>().toSet()) alarmIdForMinute(m)]);
     final outbox = ref.read(outboxProvider);
     final eventIds = <String>[
       for (final e in due.entries)
@@ -212,9 +212,7 @@ class _AlarmScreenState extends ConsumerState<AlarmScreen> {
       final exercises = (s == null || minute == null) ? const <ElderExercise>[] : s.exercisesAt(minute);
       final onlyExercise = meds.isEmpty && exercises.isNotEmpty;
       await AlarmChannel.schedule(
-        id: id >= scheduleIdBase
-            ? id - _snoozeOffset
-            : (id >= 0 ? id : DateTime.now().millisecondsSinceEpoch ~/ 1000 % 1000000),
+        id: id >= scheduleIdBase ? id - _snoozeOffset : (id >= 0 ? id : DateTime.now().millisecondsSinceEpoch ~/ 1000 % 1000000),
         at: at,
         title: onlyExercise ? 'Nhắc lại: tập thể dục' : 'Nhắc lại: ${titleFor(meds)}',
         speech: onlyExercise ? exerciseSpeechFor(s?.callName ?? '', exercises) : speechFor(s?.callName ?? '', meds),
@@ -226,8 +224,7 @@ class _AlarmScreenState extends ConsumerState<AlarmScreen> {
 
   void _onVoice(String words) {
     final onlyExercise =
-        _due(ref.read(elderScheduleProvider).value).isEmpty &&
-        _exercisesDue(ref.read(elderScheduleProvider).value).isNotEmpty;
+        _due(ref.read(elderScheduleProvider).value).isEmpty && _exercisesDue(ref.read(elderScheduleProvider).value).isNotEmpty;
     switch (classifyConfirm(words)) {
       case ConfirmIntent.taken when onlyExercise:
         _goExercise(byVoice: true);
@@ -245,8 +242,7 @@ class _AlarmScreenState extends ConsumerState<AlarmScreen> {
             .showSnackBar(const SnackBar(content: Text('Đây là lần nhắc cuối. Hãy bấm Đã uống hoặc Chưa uống được.')));
       case ConfirmIntent.unknown:
         // Not sure what was said: record nothing, keep reminding (plan §9).
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Chưa nghe rõ. Hãy bấm nút trên màn hình.')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Chưa nghe rõ. Hãy bấm nút trên màn hình.')));
     }
   }
 
@@ -283,126 +279,155 @@ class _AlarmScreenState extends ConsumerState<AlarmScreen> {
                   Container(
                     color: AppColors.primary,
                     padding: EdgeInsets.fromLTRB(
-                        AppSpacing.lg, MediaQuery.paddingOf(context).top + AppSpacing.md, AppSpacing.lg, AppSpacing.md),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Row(children: [
-                        Icon(Icons.volume_up, color: AppColors.onAccent, size: 24),
-                        const SizedBox(width: AppSpacing.sm),
-                        Text(_attempt > 1 ? 'Nhắc lại lần $_attempt' : 'Đang đọc to...', style: onBand),
-                      ]),
-                      Semantics(
-                        header: true,
-                        child: Text(
-                          '${name.isEmpty ? '' : '$name ơi, '}${onlyExercise ? 'đến giờ tập thể dục' : 'đến giờ uống thuốc'}',
-                          style: text.headlineSmall?.copyWith(color: AppColors.onAccent, height: 1.15),
+                      AppSpacing.lg,
+                      MediaQuery.paddingOf(context).top + AppSpacing.md,
+                      AppSpacing.lg,
+                      AppSpacing.md,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.volume_up, color: AppColors.onAccent, size: 24),
+                            const SizedBox(width: AppSpacing.sm),
+                            Text(_attempt > 1 ? 'Nhắc lại lần $_attempt' : 'Đang đọc to...', style: onBand),
+                          ],
                         ),
-                      ),
-                    ]),
+                        Semantics(
+                          header: true,
+                          child: Text(
+                            '${name.isEmpty ? '' : '$name ơi, '}${onlyExercise ? 'đến giờ tập thể dục' : 'đến giờ uống thuốc'}',
+                            style: text.headlineSmall?.copyWith(color: AppColors.onAccent, height: 1.15),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 0),
-                      child: Column(children: [
-                        Expanded(
-                          child: cards.isEmpty
-                              ? Center(
-                                  child: Text('Uống thuốc theo lịch con dặn.',
-                                      textAlign: TextAlign.center, style: text.titleMedium),
-                                )
-                              : PageView(
-                                  controller: _pages,
-                                  onPageChanged: (i) => setState(() => _page = i),
-                                  children: cards,
+                      child: Column(
+                        children: [
+                          Expanded(
+                            child: cards.isEmpty
+                                ? Center(
+                                    child: Text(
+                                      'Uống thuốc theo lịch con dặn.',
+                                      textAlign: TextAlign.center,
+                                      style: text.titleMedium,
+                                    ),
+                                  )
+                                : PageView(controller: _pages, onPageChanged: (i) => setState(() => _page = i), children: cards),
+                          ),
+                          if (cards.length > 1)
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                IconButton(
+                                  tooltip: 'Thuốc trước',
+                                  iconSize: 40,
+                                  onPressed: _page == 0
+                                      ? null
+                                      : () => _pages.previousPage(
+                                          duration: const Duration(milliseconds: 250),
+                                          curve: Curves.easeOut,
+                                        ),
+                                  icon: const Icon(Icons.chevron_left),
                                 ),
-                        ),
-                        if (cards.length > 1)
-                          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                            IconButton(
-                              tooltip: 'Thuốc trước',
-                              iconSize: 40,
-                              onPressed: _page == 0
-                                  ? null
-                                  : () => _pages.previousPage(duration: const Duration(milliseconds: 250), curve: Curves.easeOut),
-                              icon: const Icon(Icons.chevron_left),
+                                Text(
+                                  '${_page + 1} trong ${cards.length}',
+                                  style: text.bodyLarge?.copyWith(color: AppColors.muted),
+                                ),
+                                IconButton(
+                                  tooltip: 'Thuốc tiếp theo',
+                                  iconSize: 40,
+                                  onPressed: _page >= cards.length - 1
+                                      ? null
+                                      : () => _pages.nextPage(duration: const Duration(milliseconds: 250), curve: Curves.easeOut),
+                                  icon: const Icon(Icons.chevron_right),
+                                ),
+                              ],
                             ),
-                            Text('${_page + 1} trong ${cards.length}', style: text.bodyLarge?.copyWith(color: AppColors.muted)),
-                            IconButton(
-                              tooltip: 'Thuốc tiếp theo',
-                              iconSize: 40,
-                              onPressed: _page >= cards.length - 1
-                                  ? null
-                                  : () => _pages.nextPage(duration: const Duration(milliseconds: 250), curve: Curves.easeOut),
-                              icon: const Icon(Icons.chevron_right),
-                            ),
-                          ]),
-                      ]),
+                        ],
+                      ),
                     ),
                   ),
                   SafeArea(
                     top: false,
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.md),
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                        if (onlyExercise)
-                          FilledButton.icon(
-                            key: const Key('goExercise'),
-                            style: FilledButton.styleFrom(
-                              backgroundColor: AppColors.ok,
-                              foregroundColor: AppColors.onAccent,
-                              minimumSize: const Size.fromHeight(100),
-                              textStyle: text.headlineSmall?.copyWith(fontSize: 28),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
-                            ),
-                            onPressed: _busy ? null : _goExercise,
-                            icon: const Icon(Icons.directions_walk, size: 40),
-                            label: const Text('TÔI ĐI TẬP ĐÂY'),
-                          )
-                        else ...[
-                          FilledButton.icon(
-                            key: const Key('confirmTaken'),
-                            style: FilledButton.styleFrom(
-                              backgroundColor: AppColors.ok,
-                              foregroundColor: AppColors.onAccent,
-                              minimumSize: const Size.fromHeight(100),
-                              textStyle: text.headlineSmall?.copyWith(fontSize: 28),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
-                            ),
-                            onPressed: _busy ? null : () => _answer(taken: true),
-                            icon: const Icon(Icons.check, size: 40),
-                            label: Text(cards.length > 1 ? 'ĐÃ UỐNG HẾT' : 'ĐÃ UỐNG RỒI'),
-                          ),
-                          const SizedBox(height: AppSpacing.sm),
-                          Row(children: [
-                            Expanded(
-                              child: OutlinedButton(
-                                key: const Key('notTaken'),
-                                style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(76)),
-                                onPressed: _busy ? null : () => _answer(taken: false),
-                                child: const Text('Chưa uống được', textAlign: TextAlign.center),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (onlyExercise)
+                            FilledButton.icon(
+                              key: const Key('goExercise'),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppColors.ok,
+                                foregroundColor: AppColors.onAccent,
+                                minimumSize: const Size.fromHeight(100),
+                                textStyle: text.headlineSmall?.copyWith(fontSize: 28),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
                               ),
+                              onPressed: _busy ? null : _goExercise,
+                              icon: const Icon(Icons.directions_walk, size: 40),
+                              label: const Text('TÔI ĐI TẬP ĐÂY'),
+                            )
+                          else ...[
+                            FilledButton.icon(
+                              key: const Key('confirmTaken'),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppColors.ok,
+                                foregroundColor: AppColors.onAccent,
+                                minimumSize: const Size.fromHeight(100),
+                                textStyle: text.headlineSmall?.copyWith(fontSize: 28),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
+                              ),
+                              onPressed: _busy ? null : () => _answer(taken: true),
+                              icon: const Icon(Icons.check, size: 40),
+                              label: Text(cards.length > 1 ? 'ĐÃ UỐNG HẾT' : 'ĐÃ UỐNG RỒI'),
                             ),
-                            if (!lastRing) ...[
-                              const SizedBox(width: AppSpacing.sm),
-                              Expanded(
-                                child: OutlinedButton(
-                                  key: const Key('snooze'),
-                                  style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(76)),
-                                  onPressed: _busy ? null : _snooze,
-                                  child: const Text('Nhắc lại sau 10 phút', textAlign: TextAlign.center),
+                            const SizedBox(height: AppSpacing.sm),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton(
+                                    key: const Key('notTaken'),
+                                    style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(76)),
+                                    onPressed: _busy ? null : () => _answer(taken: false),
+                                    child: const Text('Chưa uống được', textAlign: TextAlign.center),
+                                  ),
                                 ),
+                                if (!lastRing) ...[
+                                  const SizedBox(width: AppSpacing.sm),
+                                  Expanded(
+                                    child: OutlinedButton(
+                                      key: const Key('snooze'),
+                                      style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(76)),
+                                      onPressed: _busy ? null : _snooze,
+                                      child: const Text('Nhắc lại sau 10 phút', textAlign: TextAlign.center),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ],
+                          if (lastRing)
+                            Padding(
+                              padding: const EdgeInsets.only(top: AppSpacing.sm),
+                              child: Text(
+                                'Đây là lần nhắc cuối. Chưa trả lời thì các con sẽ được báo.',
+                                textAlign: TextAlign.center,
+                                style: text.bodyMedium,
                               ),
-                            ],
-                          ]),
-                        ],
-                        if (lastRing)
-                          Padding(
-                            padding: const EdgeInsets.only(top: AppSpacing.sm),
-                            child: Text('Đây là lần nhắc cuối. Chưa trả lời thì các con sẽ được báo.',
-                                textAlign: TextAlign.center, style: text.bodyMedium),
+                            ),
+                          const SizedBox(height: AppSpacing.sm),
+                          Center(
+                            child: VoiceButton(onHeard: _onVoice, foreground: AppColors.primary),
                           ),
-                        const SizedBox(height: AppSpacing.sm),
-                        Center(child: VoiceButton(onHeard: _onVoice, foreground: AppColors.primary)),
-                      ]),
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -410,95 +435,6 @@ class _AlarmScreenState extends ConsumerState<AlarmScreen> {
             ),
           );
         },
-      ),
-    );
-  }
-}
-
-class _ExerciseCard extends StatelessWidget {
-  const _ExerciseCard({required this.minute, required this.exercise, this.onGo});
-
-  final DateTime minute;
-  final ElderExercise exercise;
-
-  /// Shown only when medicines ring at the same minute (the big button handles exercise-only alarms).
-  final VoidCallback? onGo;
-
-  @override
-  Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    final hhmm = '${minute.hour.toString().padLeft(2, '0')}:${minute.minute.toString().padLeft(2, '0')}';
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              Icon(Icons.directions_walk, size: 96, color: AppColors.ok, semanticLabel: 'Tập thể dục'),
-              Text(exercise.title, style: text.headlineSmall, textAlign: TextAlign.center),
-              if (exercise.durationMin != null) Text('${exercise.durationMin} phút', style: text.titleMedium),
-              if (exercise.note != null) Text(exercise.note!, style: text.bodyLarge, textAlign: TextAlign.center),
-              Text('Giờ tập $hhmm', style: text.bodyLarge?.copyWith(color: AppColors.muted)),
-              if (onGo != null) ...[
-                const SizedBox(height: AppSpacing.sm),
-                OutlinedButton.icon(
-                  onPressed: onGo,
-                  icon: const Icon(Icons.directions_walk),
-                  label: const Text('Tôi đi tập đây'),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MedCard extends StatelessWidget {
-  const _MedCard({required this.minute, required this.med});
-
-  final DateTime minute;
-  final ElderMed med;
-
-  @override
-  Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    final hhmm = '${minute.hour.toString().padLeft(2, '0')}:${minute.minute.toString().padLeft(2, '0')}';
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: LayoutBuilder(
-          builder: (context, box) {
-            final photo = (box.maxWidth * 0.6).clamp(120.0, 200.0);
-            return SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Semantics(
-                    label: 'Ảnh thuốc ${med.name}',
-                    image: true,
-                    child: med.photos.isEmpty
-                        ? NoMedPhoto(size: photo)
-                        : LocalMedPhoto(path: med.photos.first, size: photo),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  Text(med.name, style: text.headlineSmall, textAlign: TextAlign.center),
-                  if (med.dosage != null) Text(med.dosage!, style: text.titleMedium, textAlign: TextAlign.center),
-                  if (med.description.isNotEmpty)
-                    Text(med.description, style: text.bodyLarge, textAlign: TextAlign.center),
-                  if (med.note != null)
-                    Text(
-                      med.note!,
-                      style: text.bodyLarge?.copyWith(color: AppColors.muted),
-                      textAlign: TextAlign.center,
-                    ),
-                  Text('Giờ uống $hhmm', style: text.bodyLarge?.copyWith(color: AppColors.muted)),
-                ],
-              ),
-            );
-          },
-        ),
       ),
     );
   }

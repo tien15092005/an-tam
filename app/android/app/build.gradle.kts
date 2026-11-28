@@ -7,7 +7,8 @@ plugins {
 }
 
 // Release signing: the team leader keeps the keystore and android/key.properties outside Git (docs/SETUP.md).
-// Without them a release build is signed with the debug key and must not be shared.
+// Without them a release build stops with an error: an APK signed with another key could never be updated in
+// place on a parent's phone (it would have to be uninstalled and paired again).
 val keyProps = Properties().apply {
     val f = rootProject.file("key.properties")
     if (f.exists()) f.inputStream().use { load(it) }
@@ -51,9 +52,26 @@ android {
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("release")
         }
     }
+}
+
+gradle.taskGraph.whenReady {
+    val releasePackaging = allTasks.any { t ->
+        t.name.endsWith("Release") && listOf("assemble", "bundle", "package").any { t.name.startsWith(it) }
+    }
+    if (releasePackaging && !keyProps.containsKey("storeFile")) {
+        throw GradleException(
+            "Release build needs android/key.properties and the release keystore (docs/SETUP.md, \"APK phát hành\"). " +
+                "For testing use: flutter build apk --debug"
+        )
+    }
+}
+
+dependencies {
+    // Plain JVM tests of the alarm rules (AlarmPolicy): ./gradlew :app:testDebugUnitTest
+    testImplementation("junit:junit:4.13.2")
 }
 
 kotlin {

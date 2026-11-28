@@ -44,9 +44,9 @@ public class AlarmService extends Service {
     static final String ACTION_STOP = "vn.antam.app.alarm.STOP";
     static final String ACTION_HOLD = "vn.antam.app.alarm.HOLD";
     static final long PAUSE_BETWEEN_READS_MS = 20_000;
-    static final long RING_LIMIT_MS = 2 * 60_000;
-    static final long RETRY_AFTER_MS = 10 * 60_000;
-    static final int MAX_ATTEMPTS = 3;
+    static final long RING_LIMIT_MS = AlarmPolicy.RING_LIMIT_MS;
+    static final long RETRY_AFTER_MS = AlarmPolicy.RETRY_AFTER_MS;
+    static final int MAX_ATTEMPTS = AlarmPolicy.MAX_ATTEMPTS;
     static final String MISSED_CHANNEL_ID = "antam_missed";
     static final int MISSED_NOTIFICATION_ID = 4712;
 
@@ -320,18 +320,18 @@ public class AlarmService extends Service {
     private void ringTimedOut() {
         if (!running) return;
         int lastAttempt = 0;
-        long retryAt = Math.max(ringStartedAt + RETRY_AFTER_MS, System.currentTimeMillis() + 60_000);
+        long retryAt = AlarmPolicy.retryAt(ringStartedAt, System.currentTimeMillis());
         String title = null;
         for (AlarmStore.Alarm a : ringingNow.values()) {
             lastAttempt = Math.max(lastAttempt, a.attempt);
             title = a.title.startsWith("Nhắc lại: ") ? a.title.substring("Nhắc lại: ".length()) : a.title;
-            if (a.attempt < MAX_ATTEMPTS) {
+            if (AlarmPolicy.mayRingAgain(a.attempt)) {
                 AlarmScheduler.schedule(this, AlarmScheduler.followUpId(a.id), retryAt, "Nhắc lại: " + title, a.speech,
                         a.attempt + 1);
             }
         }
         Log.i(TAG, "alarm " + alarmId + " unanswered after attempt " + lastAttempt);
-        showMissedNotification(title == null ? "uống thuốc" : title, lastAttempt < MAX_ATTEMPTS ? retryAt : -1);
+        showMissedNotification(title == null ? "uống thuốc" : title, AlarmPolicy.mayRingAgain(lastAttempt) ? retryAt : -1);
         stopRinging();
     }
 

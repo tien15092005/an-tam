@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: 3.47.9
+          flutter-version: 3.50.0  # same as the team's machines
           channel: stable
           cache: true
       - run: flutter pub get
@@ -29,6 +29,14 @@ jobs:
         with:
           name: app-coverage
           path: app/coverage/lcov.info
+      # Alarm rules in Java (2-minute ring, 3 rings, catch-up after reboot, volume): plain JVM tests.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Alarm rules (JUnit)
+        working-directory: app/android
+        run: chmod +x gradlew && ./gradlew -q :app:testDebugUnitTest
 
   backend:
     name: Backend (Spring Boot)

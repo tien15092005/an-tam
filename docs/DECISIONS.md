@@ -253,3 +253,45 @@ Xem `docs/REVIEW.md`, mục N1 và N2.
   - API mới `DELETE /api/groups/{id}/elders/{elderId}` cùng mục **"Xóa khỏi gia đình"** ở tab Gia đình: xóa một người già (ví dụ bố mất) mà vẫn giữ người kia, đồng thời đăng xuất máy của người đó.
   - Thông báo đẩy đã gửi được tự xóa sau 7 ngày.
 
+## Sửa các mục còn lại của bản review (28/11/2026)
+
+**Vận hành**
+- **C5:** mọi container có `restart: unless-stopped`; backend có healthcheck gọi `/api/health`. Địa chỉ cố định (VPS hoặc named tunnel) để sau theo quyết định của nhóm.
+- **C6:** `scripts/backup.ps1` tạo file trong container rồi `docker compose cp` ra, kiểm tra bằng `pg_restore --list` và `tar -tzf`, mã hóa bằng `BACKUP_PASSPHRASE`. `scripts/restore.ps1 -TestOnly` khôi phục vào một database tạm để chứng minh bản sao lưu dùng được (đã chạy thử thành công).
+- **L15:** ảnh Docker ghim theo digest.
+- **L6:** kiểm tra AI trong `/api/health` được dùng lại trong 5 giây.
+- **L7:** bước quét lấy danh sách người già đang hoạt động bằng một truy vấn duy nhất. Chưa có khóa cho trường hợp chạy 2 backend (hiện chỉ chạy 1).
+- **L9:** giữ dữ liệu có thời hạn:
+  - Cảnh báo đã xử lý: 1 năm.
+  - Lịch sử chỉnh sửa: 2 năm.
+  - Mã và phiên đã hết hạn: 30 ngày.
+  - Thông báo đã gửi: 7 ngày.
+  - Ảnh đã xóa chỉ bị xóa khỏi đĩa một lần (`file_purged_at`).
+- **L5, L11:** bỏ index trùng; sửa chú thích sai.
+
+**Bảo mật**
+- **T4:**
+  - Đăng nhập giới hạn theo cặp email + địa chỉ (8 lần/10 phút), cộng một trần chung cho mỗi email (100 lần). Người lạ biết email không khóa được tài khoản của người khác.
+  - Đăng ký tối đa 10 lần mỗi giờ cho một địa chỉ.
+  - Bộ đếm không dùng tới quá 1 giờ thì bị xóa khỏi bộ nhớ.
+- **T5:** đổi mật khẩu khi đang đăng nhập (cần mật khẩu cũ), và đặt lại mật khẩu bằng mã một lần do anh chị em trong gia đình tạo (bảng `password_resets`, chỉ lưu HMAC, 15 phút, dùng một lần). Không cần email. Cả hai cách đều đăng xuất mọi máy khác.
+- **T6:** người đặt lịch thuốc bấm **Đăng xuất máy (khi mất máy)** cho bố mẹ. Phiên của máy đó bị thu hồi, máy thôi nhận thông báo, các mã ghép máy chưa dùng hết hiệu lực. Dữ liệu vẫn giữ.
+- **L1:** mật khẩu được kiểm tra theo byte UTF-8, vì BCrypt chỉ đọc 72 byte. Mật khẩu dài quá báo lỗi rõ ràng thay vì lỗi 500.
+- **L2:** access token phải đúng `iss = an-tam`.
+- **L3:** khóa dòng refresh token khi đổi token.
+- **L4:** việc tạo mã ghép máy chạy tuần tự (advisory lock), nên hai mã không bao giờ trùng nhau.
+- **L8:** thông báo trên màn hình khóa của người con để chế độ riêng tư.
+- **L10 (chấp nhận rủi ro):** muốn chuyển token FCM của máy khác sang tài khoản mình thì phải biết token đó, mà token là chuỗi bí mật chỉ máy đó giữ. Việc chuyển token cũng cần cho trường hợp hợp lệ: một máy đăng xuất tài khoản này rồi đăng nhập tài khoản khác. Nên giữ nguyên.
+
+**Báo thức và app**
+- **T1:** sau khi máy khởi động lại, báo thức bị lỡ chưa quá 30 phút sẽ reo ngay; báo thức cũ hơn thì bỏ.
+- **T2:** màn Kiểm tra máy có mục **Âm lượng báo thức**. Âm lượng dưới một nửa thì báo chưa sẵn sàng, kèm nút **Tăng âm lượng** (lên 80%).
+- **T3:** máy chủ gửi độ lệch giờ hiện tại của hồ sơ. Nếu giờ máy khác hồ sơ thì trang chính và màn Kiểm tra máy cảnh báo, có lối tắt tới cài đặt ngày giờ.
+- **T7:** bản mẫu cũ đã gỡ khỏi `main`, lưu ở tag `archive/prototype-cu`. Đã bỏ các biến cũ trong `.env.example`.
+- **T8:** CI đã có từ trước (bản review bỏ sót) và đang chạy xanh. Đã nâng lên Flutter 3.50.0 và thêm test JUnit cho các quy tắc báo thức (`AlarmPolicy`). Mọi mục đã sửa đều có test.
+- **T9:** build release mà thiếu khóa ký thì dừng với thông báo lỗi.
+- **T10:** màn thử báo thức và xem thử giao diện chỉ có trong bản debug. Trên máy bố mẹ đã ghép, không sửa được địa chỉ máy chủ (chỉ mở lại khi máy cần ghép lại).
+- **L12:** tắt sao lưu Android cho dữ liệu của app.
+- **L13:** tách 4 màn hình lớn thành các file `part`. Riêng `TodayService` ở backend chưa tách.
+- **L14:** chuyển sang `package:material_ui`, nên `flutter analyze` không còn cảnh báo nào.
+

@@ -50,6 +50,8 @@ public final class MedicationDtos {
                                    long scheduleVersion, List<MedicationResponse> medications,
                                    List<vn.antam.care.CareDtos.RecentDose> recentDoses,
                                    List<vn.antam.exercise.ExerciseDtos.ExerciseResponse> exercises,
-                                   List<vn.antam.exercise.ExerciseDtos.RecentExercise> recentExercises) {
+                                   List<vn.antam.exercise.ExerciseDtos.RecentExercise> recentExercises,
+                                   /** The parent's UTC offset right now, so the phone can warn when its own clock zone differs. */
+                                   int utcOffsetMinutes) {
     }
 }

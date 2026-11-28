@@ -190,6 +190,50 @@ class GroupAuthorizationTest extends IntegrationTest {
     }
 
     @Test
+    void aSiblingCanResetAForgottenPasswordWithAOneTimeCode() throws Exception {
+        String email = read(body(mvc.perform(as(owner, get("/api/me"))).andReturn()), "$.email");
+        String code = read(body(mvc.perform(as(member, post("/api/groups/" + groupId + "/members/" + owner.id() + "/password-reset")))
+                .andExpect(status().isCreated()).andReturn()), "$.code");
+        String reset = "{\"email\":\"" + email + "\",\"code\":\"" + code + "\",\"newPassword\":\"matkhaumoi456\"}";
+        mvc.perform(json(post("/api/auth/password-reset"), reset)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").exists());
+        mvc.perform(json(post("/api/auth/password-reset"), reset)).andExpect(status().isBadRequest()); // once only
+        refresh(owner.refreshToken()).andExpect(status().isUnauthorized());                         // old sessions end
+        mvc.perform(json(post("/api/auth/login"), "{\"email\":\"" + email + "\",\"password\":\"matkhaumoi456\"}"))
+                .andExpect(status().isOk());
+        // Someone outside the family cannot create codes, nor can a parent's account be reset this way.
+        mvc.perform(as(outsider, post("/api/groups/" + groupId + "/members/" + owner.id() + "/password-reset")))
+                .andExpect(status().isNotFound());
+        mvc.perform(as(member, post("/api/groups/" + groupId + "/members/" + elderId + "/password-reset")))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void changingThePasswordNeedsTheCurrentOneAndEndsOtherSessions() throws Exception {
+        mvc.perform(json(as(member, post("/api/me/password")), "{\"currentPassword\":\"sai-roi-123\",\"newPassword\":\"matkhaumoi456\"}"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("wrong_password"));
+        mvc.perform(json(as(member, post("/api/me/password")), "{\"currentPassword\":\"matkhau123\",\"newPassword\":\"matkhaumoi456\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.refreshToken").exists());
+        refresh(member.refreshToken()).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void aVietnamesePasswordOverBcryptsLimitIsRefusedClearly() throws Exception {
+        String longVietnamese = "Đường-về-nhà-bà-ngoại-thật-là-xa-ơi-hỡi-người-ở-lại-đừng-buồn"; // under 72 characters, over 72 bytes
+        mvc.perform(json(post("/api/auth/register"), "{\"email\":\"dai." + java.util.UUID.randomUUID().toString().substring(0, 6)
+                        + "@test.vn\",\"password\":\"" + longVietnamese + "\",\"displayName\":\"Dài\"}"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("password_too_long"));
+    }
+
+    @Test
+    void theOwnerCanSignOutALostElderPhone() throws Exception {
+        mvc.perform(as(member, post("/api/groups/" + groupId + "/elders/" + elderId + "/sign-out"))).andExpect(status().isForbidden());
+        mvc.perform(as(owner, post("/api/groups/" + groupId + "/elders/" + elderId + "/sign-out"))).andExpect(status().isNoContent());
+        refresh(elder.refreshToken()).andExpect(status().isUnauthorized());
+        mvc.perform(as(owner, get("/api/groups/" + groupId))).andExpect(jsonPath("$.members.length()").value(3)); // data stays
+    }
+
+    @Test
     void anElderWithAnUnknownTimeZoneIsRejected() throws Exception {
         mvc.perform(json(as(owner, post("/api/groups/" + groupId + "/elders")),
                         "{\"callName\":\"Ông Ba\",\"timezone\":\"Asia/HoChiMinh\"}"))

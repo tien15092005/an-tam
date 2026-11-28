@@ -1,10 +1,12 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/config/server_config.dart';
 import '../../core/network/api_client.dart';
 import '../../core/theme/tokens.dart';
+import '../auth/session.dart';
 import 'server_health.dart';
 
 /// Phase 1 screen: shows whether the app reaches the backend (and the backend the AI service),
@@ -39,6 +41,10 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen> {
   Widget build(BuildContext context) {
     final health = ref.watch(serverHealthProvider);
     final theme = Theme.of(context);
+    // On a paired parent's phone the address is locked: a grandchild playing with it would stop all syncing.
+    // It opens again only when the phone has to be paired again (a new code, maybe a new server).
+    final session = ref.watch(sessionProvider).value;
+    final locked = session != null && session.isElder && !session.expired;
 
     return Scaffold(
       appBar: AppBar(title: const Text('An Tâm · Kiểm tra kết nối')),
@@ -84,9 +90,16 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen> {
             const SizedBox(height: AppSpacing.lg),
             Text('Địa chỉ máy chủ', style: theme.textTheme.titleMedium),
             const SizedBox(height: AppSpacing.sm),
+            if (locked)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: Text('Máy của bố mẹ đã ghép xong nên không đổi địa chỉ ở đây. '
+                    'Khi cần, đăng xuất trên máy này rồi ghép lại bằng mã mới.', style: theme.textTheme.bodyMedium),
+              ),
             TextField(
               key: const Key('serverUrlField'),
               controller: _url,
+              enabled: !locked,
               keyboardType: TextInputType.url,
               autocorrect: false,
               decoration: InputDecoration(
@@ -98,11 +111,11 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen> {
             const SizedBox(height: AppSpacing.sm),
             Row(
               children: [
-                Expanded(child: FilledButton(onPressed: _save, child: const Text('Lưu'))),
+                Expanded(child: FilledButton(onPressed: locked ? null : _save, child: const Text('Lưu'))),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () async {
+                    onPressed: locked ? null : () async {
                       await ref.read(serverUrlProvider.notifier).reset();
                       _url.text = ref.read(serverUrlProvider);
                       setState(() => _urlError = null);
@@ -112,20 +125,22 @@ class _ConnectionScreenState extends ConsumerState<ConnectionScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: AppSpacing.lg),
-            Text('Xem thử giao diện', style: theme.textTheme.titleMedium),
-            const SizedBox(height: AppSpacing.sm),
-            OutlinedButton.icon(
-              onPressed: () => context.push('/preview/elder'),
-              icon: const Icon(Icons.accessibility_new),
-              label: const Text('Chế độ người già'),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            OutlinedButton.icon(
-              onPressed: () => context.push('/spike/alarm'),
-              icon: const Icon(Icons.alarm),
-              label: const Text('Thử nghiệm báo thức'),
-            ),
+            if (kDebugMode) ...[
+              const SizedBox(height: AppSpacing.lg),
+              Text('Xem thử giao diện (chỉ bản thử)', style: theme.textTheme.titleMedium),
+              const SizedBox(height: AppSpacing.sm),
+              OutlinedButton.icon(
+                onPressed: () => context.push('/preview/elder'),
+                icon: const Icon(Icons.accessibility_new),
+                label: const Text('Chế độ người già'),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              OutlinedButton.icon(
+                onPressed: () => context.push('/spike/alarm'),
+                icon: const Icon(Icons.alarm),
+                label: const Text('Thử nghiệm báo thức'),
+              ),
+            ],
           ],
         ),
       ),

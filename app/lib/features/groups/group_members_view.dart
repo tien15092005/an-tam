@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -65,6 +65,11 @@ class GroupMembersView extends ConsumerWidget {
               onTap: () => Navigator.pop(sheet, 'meds'),
             ),
             ListTile(
+              leading: const Icon(Icons.phonelink_erase),
+              title: const Text('Đăng xuất máy (khi mất máy)'),
+              onTap: () => Navigator.pop(sheet, 'signout'),
+            ),
+            ListTile(
               leading: Icon(Icons.person_remove_outlined, color: AppColors.danger),
               title: Text('Xóa khỏi gia đình', style: TextStyle(color: AppColors.danger)),
               onTap: () => Navigator.pop(sheet, 'remove'),
@@ -78,6 +83,16 @@ class GroupMembersView extends ConsumerWidget {
         context.push('/groups/${group.id}/elders/${e.userId}/medications');
         return;
       }
+      if (v == 'signout') {
+        final ok = await confirm(context,
+            title: 'Đăng xuất máy của ${e.displayName}?',
+            message: 'Dùng khi mất máy. Máy đó không xem được thuốc và thôi nhận thông báo. '
+                'Dữ liệu vẫn giữ: ghép máy mới bằng "Lấy mã ghép máy".',
+            action: 'Đăng xuất máy');
+        if (!ok || !context.mounted) return;
+        await _run(context, ref, () => api.signOutElderPhone(group.id, e.userId), done: 'Đã đăng xuất máy của ${e.displayName}');
+        return;
+      }
       final ok = await confirm(context,
           title: 'Xóa ${e.displayName} khỏi gia đình?',
           message: 'Hồ sơ, thuốc, ảnh thuốc và lịch sử uống thuốc của ${e.displayName} sẽ bị xóa. '
@@ -87,25 +102,48 @@ class GroupMembersView extends ConsumerWidget {
       await _run(context, ref, () => api.removeElder(group.id, e.userId), done: 'Đã xóa ${e.displayName}');
     }
 
+    /// Any child can help a sibling who forgot their password; only the one who sets medicines manages members.
     Future<void> caregiverMenu(GroupMember c) async {
+      final manage = owner && c.role == GroupRole.member;
       final v = await showModalBottomSheet<String>(
         context: context,
         builder: (sheet) => SafeArea(
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             ListTile(
-              leading: const Icon(Icons.swap_horiz),
-              title: const Text('Giao quyền đặt lịch thuốc'),
-              onTap: () => Navigator.pop(sheet, 'transfer'),
+              leading: const Icon(Icons.key),
+              title: const Text('Tạo mã đặt lại mật khẩu'),
+              subtitle: const Text('Khi người này quên mật khẩu'),
+              onTap: () => Navigator.pop(sheet, 'reset'),
             ),
-            ListTile(
-              leading: Icon(Icons.person_remove_outlined, color: AppColors.danger),
-              title: Text('Xóa khỏi gia đình', style: TextStyle(color: AppColors.danger)),
-              onTap: () => Navigator.pop(sheet, 'remove'),
-            ),
+            if (manage) ...[
+              ListTile(
+                leading: const Icon(Icons.swap_horiz),
+                title: const Text('Giao quyền đặt lịch thuốc'),
+                onTap: () => Navigator.pop(sheet, 'transfer'),
+              ),
+              ListTile(
+                leading: Icon(Icons.person_remove_outlined, color: AppColors.danger),
+                title: Text('Xóa khỏi gia đình', style: TextStyle(color: AppColors.danger)),
+                onTap: () => Navigator.pop(sheet, 'remove'),
+              ),
+            ],
           ]),
         ),
       );
       if (v == null || !context.mounted) return;
+      if (v == 'reset') {
+        await _run(context, ref, () async {
+          final code = await api.createPasswordReset(group.id, c.userId);
+          if (context.mounted) {
+            await showCodeDialog(context,
+                title: 'Mã đặt lại mật khẩu cho ${c.displayName}',
+                hint: 'Gửi mã cho ${c.displayName} (gọi điện hoặc Zalo). Trên màn hình đăng nhập, bấm "Quên mật khẩu?", '
+                    'nhập email, mã này và mật khẩu mới. Chỉ dùng được một lần.',
+                code: code);
+          }
+        });
+        return;
+      }
       final transfer = v == 'transfer';
       final ok = await confirm(context,
           title: transfer ? 'Giao quyền đặt lịch?' : 'Xóa khỏi gia đình?',
@@ -178,8 +216,8 @@ class GroupMembersView extends ConsumerWidget {
               leading: InitialAvatar(c.displayName),
               title: Text(c.userId == me?.id ? '${c.displayName} (bạn)' : c.displayName),
               subtitle: c.role == GroupRole.owner ? const Text('Đặt và sửa lịch thuốc') : null,
-              trailing: owner && c.role == GroupRole.member ? const Icon(Icons.more_horiz) : null,
-              onTap: owner && c.role == GroupRole.member ? () => caregiverMenu(c) : null,
+              trailing: c.userId != me?.id ? const Icon(Icons.more_horiz) : null,
+              onTap: c.userId != me?.id ? () => caregiverMenu(c) : null,
             ),
         ]),
       ),

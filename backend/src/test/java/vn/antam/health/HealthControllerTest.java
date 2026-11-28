@@ -31,6 +31,21 @@ class HealthControllerTest {
     @MockitoBean
     org.springframework.jdbc.core.JdbcTemplate jdbc;
 
+    @Autowired
+    HealthController controller;
+
+    @org.junit.jupiter.api.BeforeEach
+    void freshAiCheck() {
+        controller.forgetCachedAiStatus();
+    }
+
+    @Test
+    void theAiCheckIsReusedForAFewSeconds() throws Exception {
+        when(aiServiceClient.isReachable()).thenReturn(true);
+        for (int i = 0; i < 5; i++) mvc.perform(get("/api/health")).andExpect(status().isOk());
+        org.mockito.Mockito.verify(aiServiceClient, org.mockito.Mockito.times(1)).isReachable();
+    }
+
     @Test
     void isPublicAndReportsAiUpWhenReachable() throws Exception {
         when(aiServiceClient.isReachable()).thenReturn(true);

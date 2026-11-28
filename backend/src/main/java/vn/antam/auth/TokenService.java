@@ -83,7 +83,7 @@ public class TokenService {
     @Transactional(noRollbackFor = ApiException.class)
     public TokenPair refresh(String refreshToken) {
         Instant now = clock.instant();
-        RefreshToken current = refreshTokens.findByTokenHash(secrets.hashToken(refreshToken == null ? "" : refreshToken))
+        RefreshToken current = refreshTokens.findForUpdate(secrets.hashToken(refreshToken == null ? "" : refreshToken))
                 .orElseThrow(TokenService::invalidSession);
         if (current.wasRotated()) {
             RefreshToken next = current.getReplacedBy() == null ? null

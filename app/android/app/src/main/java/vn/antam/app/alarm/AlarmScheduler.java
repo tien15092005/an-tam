@@ -39,7 +39,7 @@ public final class AlarmScheduler {
     public static final int FOLLOW_UP_OFFSET = 50_000_000;
 
     static int followUpId(int id) {
-        return id >= SCHEDULE_ID_BASE ? id - FOLLOW_UP_OFFSET : id;
+        return AlarmPolicy.followUpId(id);
     }
 
     /** Highest attempt among the alarms ringing now; 0 when nothing rings. */
@@ -98,14 +98,20 @@ public final class AlarmScheduler {
         AlarmStore.remove(context, id);
     }
 
-    /** Re-arms every stored alarm that is still in the future; drops the ones already past. */
+    /**
+     * Re-arms every stored alarm still in the future. One the phone missed while it was off or restarting
+     * (less than 30 minutes ago) rings at once, so a dose is not silently skipped; older ones are dropped.
+     */
     static void rearmAll(Context context) {
         long now = System.currentTimeMillis();
         for (AlarmStore.Alarm a : AlarmStore.all(context)) {
-            if (a.triggerAtMillis > now) {
-                arm(context, a.id, a.triggerAtMillis);
-            } else {
-                AlarmStore.remove(context, a.id);
+            switch (AlarmPolicy.onRestart(a.triggerAtMillis, now)) {
+                case ARM -> arm(context, a.id, a.triggerAtMillis);
+                case RING_NOW -> {
+                    AlarmStore.remove(context, a.id);
+                    AlarmService.start(context, a);
+                }
+                case DROP -> AlarmStore.remove(context, a.id);
             }
         }
     }

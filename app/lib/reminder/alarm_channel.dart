@@ -10,6 +10,7 @@ class AlarmReadiness {
     required this.batteryUnrestricted,
     required this.vietnameseVoice,
     this.microphone = false,
+    this.alarmVolume = true,
   });
 
   final bool notifications;
@@ -21,8 +22,12 @@ class AlarmReadiness {
   /// Optional: only needed for answering by voice.
   final bool microphone;
 
+  /// The alarm volume is at least half: voice and fallback tone play on the alarm stream.
+  final bool alarmVolume;
+
   /// Everything an alarm needs to ring, speak and show over the lock screen.
-  bool get alarmsReady => notifications && exactAlarms && fullScreen && batteryUnrestricted && vietnameseVoice;
+  bool get alarmsReady =>
+      notifications && exactAlarms && fullScreen && batteryUnrestricted && vietnameseVoice && alarmVolume;
 
   factory AlarmReadiness.fromMap(Map<Object?, Object?> m) => AlarmReadiness(
         notifications: m['notifications'] == true,
@@ -31,6 +36,8 @@ class AlarmReadiness {
         batteryUnrestricted: m['batteryUnrestricted'] == true,
         vietnameseVoice: m['vietnameseVoice'] == true,
         microphone: m['microphone'] == true,
+        // Older app builds did not report it: do not raise a false alarm.
+        alarmVolume: m['alarmVolume'] != false,
       );
 }
 
@@ -172,7 +179,7 @@ class AlarmChannel {
 
   static Future<void> requestNotificationPermission() => _channel.invokeMethod('requestNotificationPermission');
 
-  /// which: notifications | exactAlarms | fullScreen | battery | tts | microphone
+  /// which: notifications | exactAlarms | fullScreen | battery | tts | microphone | volume (raises it directly)
   static Future<void> openSettings(String which) => _channel.invokeMethod('openSettings', {'which': which});
 
   /// Called when an alarm starts ringing while the app is already open.

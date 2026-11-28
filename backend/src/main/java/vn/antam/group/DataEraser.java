@@ -71,6 +71,11 @@ public class DataEraser {
         users.findById(elderId).ifPresent(User::anonymize);
     }
 
+    /** Push tokens of a phone that must stop receiving this account's notifications. */
+    public void forgetDevices(Long userId) {
+        jdbc.update("DELETE FROM devices WHERE user_id = ?", userId);
+    }
+
     /** The whole family is gone: every parent in it, plus all its push texts and change history. */
     public void eraseGroup(Long groupId, List<Long> elderIds, Instant now) {
         for (Long elderId : elderIds) eraseElder(groupId, elderId, now);

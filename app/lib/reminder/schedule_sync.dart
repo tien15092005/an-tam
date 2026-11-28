@@ -182,6 +182,8 @@ class ElderScheduleNotifier extends AsyncNotifier<ElderSchedule> {
           ..where((l) => l.scheduledAt.isSmallerThanValue(DateTime.now().subtract(const Duration(days: 8)))))
         .go();
     await _db.setMeta('callName', json['callName'] as String? ?? '');
+    final offset = json['utcOffsetMinutes'];
+    if (offset is int) await _db.setMeta('utcOffsetMinutes', '$offset');
     await _db.setMeta('version', '${json['scheduleVersion']}');
     await _db.setMeta('lastSynced', DateTime.now().toIso8601String());
     // Saved now so "Gọi cho con" works later without network.
@@ -209,6 +211,7 @@ class ElderScheduleNotifier extends AsyncNotifier<ElderSchedule> {
     final last = await _db.meta('lastSynced');
     return ElderSchedule(
       callName: await _db.meta('callName') ?? '',
+      profileUtcOffsetMinutes: int.tryParse(await _db.meta('utcOffsetMinutes') ?? ''),
       version: int.tryParse(await _db.meta('version') ?? '') ?? -1,
       lastSynced: last == null ? null : DateTime.parse(last),
       logs: logs,

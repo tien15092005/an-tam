@@ -90,7 +90,8 @@ public class MedicationService {
                 .orElseThrow(() -> ApiException.notFound("nhóm")).getScheduleVersion();
         List<MedicationResponse> meds = toResponses(elder.getGroupId(), medications.current(elderUserId, today(elder)));
         return new ScheduleResponse(elder.getGroupId(), elderUserId, elder.getCallName(), elder.getTimezone(), version, meds,
-                care.recentFor(elder), exercises.currentFor(elder), exercises.recentFor(elder));
+                care.recentFor(elder), exercises.currentFor(elder), exercises.recentFor(elder),
+                elder.zone().getRules().getOffset(clock.instant()).getTotalSeconds() / 60);
     }
 
     @Transactional

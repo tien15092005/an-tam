@@ -169,25 +169,45 @@ Script tạo 2 người con, 1 nhóm, bà Lan với 3 thuốc và 1 lịch tập
 
 ## Sao lưu và khôi phục
 
-```bash
-powershell -ExecutionPolicy Bypass -File scripts\backup.ps1
-```
-
-Tạo `backups/antam-<thời gian>.sql` và `backups/media-<thời gian>.tgz` (giữ 14 bản gần nhất). Thư mục `backups/` chứa dữ liệu gia đình, không đưa lên Git.
-
-Khôi phục (ghi đè dữ liệu hiện tại), chạy trong `cmd`:
+Đặt `BACKUP_PASSPHRASE` (tối thiểu 16 ký tự) trong `.env` và **giữ một bản ở ngoài laptop**. Mất mật khẩu này thì không mở được bản sao lưu.
 
 ```bash
-type backups\antam-YYYYMMDD-HHMM.sql | docker compose exec -T db psql -U antam -d antam
+powershell -ExecutionPolicy Bypass -File scriptsackup.ps1
 ```
 
+Lệnh tạo `backups/antam-<thời gian>.dump.enc` (database) và `backups/media-<thời gian>.tgz.enc` (ảnh thuốc), giữ 14 bản gần nhất.
+- Hai file được tạo ngay trong container rồi chép ra, nên không bị hỏng như khi dùng `>` trong PowerShell 5.1.
+- Mỗi file được kiểm tra mở lại được trước khi tính là một bản sao lưu.
+- Hai file được mã hóa (AES-256 kèm HMAC).
+
+Thư mục `backups/` không đưa lên Git.
+
+Thử xem bản sao lưu có khôi phục được không, mà không đụng vào dữ liệu thật (nên làm mỗi tháng một lần):
+
 ```bash
-type backups\media-YYYYMMDD-HHMM.tgz | docker compose exec -T backend tar -C /data -xzf -
+powershell -ExecutionPolicy Bypass -File scriptsestore.ps1 -Stamp YYYYMMDD-HHMM -TestOnly
 ```
+
+Khôi phục thật (**ghi đè** dữ liệu hiện tại):
+
+```bash
+powershell -ExecutionPolicy Bypass -File scriptsestore.ps1 -Stamp YYYYMMDD-HHMM
+```
+
+## Chạy lâu dài trên laptop
+
+Các container có `restart: unless-stopped`, backend có kiểm tra sức khỏe. Muốn máy chủ tự chạy lại sau khi khởi động lại laptop, bật **Docker Desktop → Settings → General → Start Docker Desktop when you sign in**. Địa chỉ đường hầm nhanh (`trycloudflare.com`) vẫn đổi mỗi lần chạy lại. Muốn địa chỉ cố định thì cần một tên miền trên Cloudflare (named tunnel) hoặc một VPS. Việc này chưa làm (REVIEW C5).
+
+## Quên mật khẩu
+
+Không cần email. Một anh chị em trong gia đình mở tab **Gia đình**, bấm vào tên người quên mật khẩu, chọn **Tạo mã đặt lại mật khẩu**, rồi gửi mã đó qua điện thoại hoặc Zalo.
+- Người quên mật khẩu bấm **Quên mật khẩu?** ở màn hình đăng nhập, nhập email, mã và mật khẩu mới.
+- Mã dùng một lần, trong 15 phút. Đặt lại xong, mọi máy khác của tài khoản đó bị đăng xuất.
+- Đang đăng nhập thì đổi mật khẩu ở **Gia đình → Đổi mật khẩu**.
 
 ## APK phát hành
 
-Nhóm trưởng tạo keystore một lần và giữ riêng (không lên Git):
+Người quản lý dự án tạo keystore một lần và giữ riêng (không lên Git). Thiếu `android/key.properties` thì `flutter build apk --release` **dừng với thông báo lỗi** chứ không ký bằng khóa debug:
 
 ```bash
 keytool -genkey -v -keystore %USERPROFILE%\antam-release.jks -keyalg RSA -keysize 2048 -validity 10000 -alias antam

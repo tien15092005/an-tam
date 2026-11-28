@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/network/api_client.dart';
@@ -43,21 +43,21 @@ class DaySlot {
   final bool canUndo;
 
   factory DaySlot.fromJson(Map<String, dynamic> j) => DaySlot(
-        time: j['scheduledTime'] as String,
-        medicationId: j['medicationId'] as int,
-        name: j['name'] as String,
-        dosage: j['dosage'] as String?,
-        description: j['description'] as String?,
-        imageUrl: j['imageUrl'] as String?,
-        status: j['status'] as String,
-        doseLogId: j['doseLogId'] as int?,
-        source: j['source'] as String?,
-        checkResult: j['checkResult'] as String?,
-        loggedAt: j['loggedAt'] == null ? null : DateTime.parse(j['loggedAt'] as String).toLocal(),
-        loggedByName: j['loggedByName'] as String?,
-        canMark: j['canMark'] as bool? ?? false,
-        canUndo: j['canUndo'] as bool? ?? false,
-      );
+    time: j['scheduledTime'] as String,
+    medicationId: j['medicationId'] as int,
+    name: j['name'] as String,
+    dosage: j['dosage'] as String?,
+    description: j['description'] as String?,
+    imageUrl: j['imageUrl'] as String?,
+    status: j['status'] as String,
+    doseLogId: j['doseLogId'] as int?,
+    source: j['source'] as String?,
+    checkResult: j['checkResult'] as String?,
+    loggedAt: j['loggedAt'] == null ? null : DateTime.parse(j['loggedAt'] as String).toLocal(),
+    loggedByName: j['loggedByName'] as String?,
+    canMark: j['canMark'] as bool? ?? false,
+    canUndo: j['canUndo'] as bool? ?? false,
+  );
 
   /// Who answered and how, e.g. "Bà Lan bấm nút lúc 08:03" or "Anh Nam đánh dấu giúp lúc 09:10".
   String? get answeredBy {
@@ -71,21 +71,21 @@ class DaySlot {
   }
 
   String? get checkText => switch (checkResult) {
-        'ISSUE' => 'Có báo vấn đề',
-        'NO_RESPONSE' => 'Không trả lời câu hỏi "có vấn đề gì không"',
-        _ => null,
-      };
+    'ISSUE' => 'Có báo vấn đề',
+    'NO_RESPONSE' => 'Không trả lời câu hỏi "có vấn đề gì không"',
+    _ => null,
+  };
 }
 
 /// Status shown with an icon, a word and a colour (never colour alone).
 (IconData, String, Color, Color) statusStyle(String status) => switch (status) {
-      'TAKEN' => (Icons.check_circle, 'Đã uống', AppColors.ok, AppColors.okSoft),
-      'NOT_TAKEN' => (Icons.block, 'Không uống được', AppColors.warn, AppColors.warnSoft),
-      'SKIPPED' => (Icons.skip_next, 'Bỏ qua', AppColors.muted, AppColors.navySoft),
-      'MISSED' => (Icons.error, 'Chưa xác nhận', AppColors.danger, AppColors.dangerSoft),
-      'DUE' => (Icons.notifications_active, 'Đang nhắc', AppColors.primary, AppColors.primarySoft),
-      _ => (Icons.schedule, 'Sắp tới', AppColors.navy, AppColors.navySoft),
-    };
+  'TAKEN' => (Icons.check_circle, 'Đã uống', AppColors.ok, AppColors.okSoft),
+  'NOT_TAKEN' => (Icons.block, 'Không uống được', AppColors.warn, AppColors.warnSoft),
+  'SKIPPED' => (Icons.skip_next, 'Bỏ qua', AppColors.muted, AppColors.navySoft),
+  'MISSED' => (Icons.error, 'Chưa xác nhận', AppColors.danger, AppColors.dangerSoft),
+  'DUE' => (Icons.notifications_active, 'Đang nhắc', AppColors.primary, AppColors.primarySoft),
+  _ => (Icons.schedule, 'Sắp tới', AppColors.navy, AppColors.navySoft),
+};
 
 /// An exercise on the caregiver's day view. status: DONE, UPCOMING, DUE or MISSED.
 class DayExercise {
@@ -97,40 +97,50 @@ class DayExercise {
   final DateTime? loggedAt;
 
   factory DayExercise.fromJson(Map<String, dynamic> j) => DayExercise(
-        j['title'] as String,
-        j['time'] as String,
-        j['durationMin'] as int?,
-        j['status'] as String,
-        j['loggedAt'] == null ? null : DateTime.parse(j['loggedAt'] as String).toLocal(),
-      );
+    j['title'] as String,
+    j['time'] as String,
+    j['durationMin'] as int?,
+    j['status'] as String,
+    j['loggedAt'] == null ? null : DateTime.parse(j['loggedAt'] as String).toLocal(),
+  );
 
   (IconData, String, Color) get look => switch (status) {
-        'DONE' => (Icons.check_circle, 'Đã đi tập', AppColors.ok),
-        'MISSED' => (Icons.error_outline, 'Chưa xác nhận', AppColors.warn),
-        'DUE' => (Icons.notifications_active, 'Đang nhắc', AppColors.primary),
-        _ => (Icons.schedule, 'Sắp tới', AppColors.navy),
-      };
+    'DONE' => (Icons.check_circle, 'Đã đi tập', AppColors.ok),
+    'MISSED' => (Icons.error_outline, 'Chưa xác nhận', AppColors.warn),
+    'DUE' => (Icons.notifications_active, 'Đang nhắc', AppColors.primary),
+    _ => (Icons.schedule, 'Sắp tới', AppColors.navy),
+  };
 }
 
 /// One day cell of the week / month calendar.
 class CalendarDay {
-  const CalendarDay(this.date, this.total, this.taken, this.notTaken, this.missed, this.due, this.upcoming, this.exercises,
-      this.exercisesDone, this.exercisesMissed);
+  const CalendarDay(
+    this.date,
+    this.total,
+    this.taken,
+    this.notTaken,
+    this.missed,
+    this.due,
+    this.upcoming,
+    this.exercises,
+    this.exercisesDone,
+    this.exercisesMissed,
+  );
   final DateTime date;
   final int total, taken, notTaken, missed, due, upcoming, exercises, exercisesDone, exercisesMissed;
 
   factory CalendarDay.fromJson(Map<String, dynamic> j) => CalendarDay(
-        DateTime.parse(j['date'] as String),
-        j['total'] as int,
-        j['taken'] as int,
-        j['notTaken'] as int,
-        j['missed'] as int,
-        j['due'] as int,
-        j['upcoming'] as int,
-        j['exercises'] as int,
-        j['exercisesDone'] as int,
-        j['exercisesMissed'] as int,
-      );
+    DateTime.parse(j['date'] as String),
+    j['total'] as int,
+    j['taken'] as int,
+    j['notTaken'] as int,
+    j['missed'] as int,
+    j['due'] as int,
+    j['upcoming'] as int,
+    j['exercises'] as int,
+    j['exercisesDone'] as int,
+    j['exercisesMissed'] as int,
+  );
 
   /// The dot: red if anything went unconfirmed, orange if not taken, green if all taken, grey for later.
   /// Null when nothing is scheduled.
@@ -153,8 +163,12 @@ class CalendarDay {
 typedef CalendarRange = ({int groupId, int elderUserId, String from, String to});
 
 final calendarProvider = FutureProvider.autoDispose.family<List<CalendarDay>, CalendarRange>((ref, k) async {
-  final r = await ref.read(dioProvider).get<List<dynamic>>('/api/groups/${k.groupId}/elders/${k.elderUserId}/calendar',
-      queryParameters: {'from': k.from, 'to': k.to});
+  final r = await ref
+      .read(dioProvider)
+      .get<List<dynamic>>(
+        '/api/groups/${k.groupId}/elders/${k.elderUserId}/calendar',
+        queryParameters: {'from': k.from, 'to': k.to},
+      );
   return r.data!.map((j) => CalendarDay.fromJson(j as Map<String, dynamic>)).toList();
 });
 
@@ -180,15 +194,15 @@ class DayView {
   final List<DayExercise> exercises;
 
   factory DayView.fromJson(Map<String, dynamic> j) => DayView(
-        date: DateTime.parse(j['date'] as String),
-        callName: j['callName'] as String? ?? '',
-        phone: j['phone'] as String?,
-        slots: (j['slots'] as List).map((s) => DaySlot.fromJson(s as Map<String, dynamic>)).toList(),
-        counts: (j['counts'] as Map<String, dynamic>).map((k, v) => MapEntry(k, v as int)),
-        missedLast7Days: j['missedLast7Days'] as int? ?? 0,
-        openAlerts: j['openAlerts'] as int? ?? 0,
-        exercises: ((j['exercises'] as List?) ?? const []).map((e) => DayExercise.fromJson(e as Map<String, dynamic>)).toList(),
-      );
+    date: DateTime.parse(j['date'] as String),
+    callName: j['callName'] as String? ?? '',
+    phone: j['phone'] as String?,
+    slots: (j['slots'] as List).map((s) => DaySlot.fromJson(s as Map<String, dynamic>)).toList(),
+    counts: (j['counts'] as Map<String, dynamic>).map((k, v) => MapEntry(k, v as int)),
+    missedLast7Days: j['missedLast7Days'] as int? ?? 0,
+    openAlerts: j['openAlerts'] as int? ?? 0,
+    exercises: ((j['exercises'] as List?) ?? const []).map((e) => DayExercise.fromJson(e as Map<String, dynamic>)).toList(),
+  );
 
   /// Slots grouped by time, in order (one alarm per time).
   Map<String, List<DaySlot>> get byTime {
@@ -212,7 +226,9 @@ class TodayApi {
   final Ref _ref;
 
   /// Marks every listed medicine at that time as taken; the elder's phone stops ringing.
-  Future<void> mark(ElderDay day, String time, List<int> medicationIds) => _ref.read(dioProvider).post<void>(
+  Future<void> mark(ElderDay day, String time, List<int> medicationIds) => _ref
+      .read(dioProvider)
+      .post<void>(
         '/api/groups/${day.groupId}/elders/${day.elderUserId}/doses',
         data: {'clientEventId': newEventId(), 'scheduledDate': day.date, 'scheduledTime': time, 'medicationIds': medicationIds},
       );

@@ -105,6 +105,7 @@ class ElderSchedule {
     this.logs = const {},
     this.exercises = const [],
     this.exercisesDone = const {},
+    this.profileUtcOffsetMinutes,
   });
 
   static const empty = ElderSchedule(callName: '', version: -1, meds: []);
@@ -125,6 +126,14 @@ class ElderSchedule {
   /// Exercises the elder went to, keyed by [exerciseKey].
   final Set<String> exercisesDone;
 
+  /// UTC offset of the parent's time zone as the server sees it (null until the first sync with a new server).
+  final int? profileUtcOffsetMinutes;
+
+  /// Alarms ring by the phone's clock, the server judges "chưa xác nhận" by the profile's zone. If they differ,
+  /// doses would ring hours off and be reported missed: the home and readiness screens warn.
+  bool clockZoneDiffers(DateTime now) =>
+      profileUtcOffsetMinutes != null && profileUtcOffsetMinutes != now.timeZoneOffset.inMinutes;
+
   ElderSchedule copyWith({bool? offline, Map<String, String>? logs, Set<String>? exercisesDone}) => ElderSchedule(
       callName: callName,
       version: version,
@@ -133,7 +142,8 @@ class ElderSchedule {
       offline: offline ?? this.offline,
       logs: logs ?? this.logs,
       exercises: exercises,
-      exercisesDone: exercisesDone ?? this.exercisesDone);
+      exercisesDone: exercisesDone ?? this.exercisesDone,
+      profileUtcOffsetMinutes: profileUtcOffsetMinutes);
 
   List<ExerciseSlot> exercisesOn(DateTime day) {
     final d = dateOnly(day);

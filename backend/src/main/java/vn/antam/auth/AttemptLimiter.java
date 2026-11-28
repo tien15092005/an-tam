@@ -68,6 +68,19 @@ public class AttemptLimiter {
         attempts.remove(key);
     }
 
+    /** Drops keys with no attempt in the last {@code idle}; run regularly so the map cannot grow forever. */
+    public int evictIdle(Duration idle) {
+        Instant cutoff = clock.instant().minus(idle);
+        int before = attempts.size();
+        attempts.entrySet().removeIf(e -> {
+            synchronized (e.getValue()) {
+                Instant last = e.getValue().peekLast();
+                return last == null || last.isBefore(cutoff);
+            }
+        });
+        return before - attempts.size();
+    }
+
     /** Forgets everything. Used by tests, which all come from the same address. */
     public void clear() {
         attempts.clear();

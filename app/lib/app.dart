@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -61,8 +62,9 @@ final routerProvider = Provider<GoRouter>((ref) {
             groupId: int.parse(s.pathParameters['id']!), elderUserId: int.parse(s.pathParameters['elder']!)),
       ),
       GoRoute(path: '/connection', builder: (_, _) => const ConnectionScreen()),
-      GoRoute(path: '/preview/elder', builder: (_, _) => const ElderPreviewScreen()),
-      GoRoute(path: '/spike/alarm', builder: (_, _) => const AlarmSpikeScreen()),
+      // Developer screens: only in debug builds, never on a parent's phone.
+      if (kDebugMode) GoRoute(path: '/preview/elder', builder: (_, _) => const ElderPreviewScreen()),
+      if (kDebugMode) GoRoute(path: '/spike/alarm', builder: (_, _) => const AlarmSpikeScreen()),
       GoRoute(path: '/alarm', builder: (_, _) => const AlarmScreen()),
       GoRoute(
         path: '/alarm/question',

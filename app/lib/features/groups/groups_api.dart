@@ -116,6 +116,13 @@ class GroupsApi {
   Future<void> transferOwnership(int groupId, int userId) =>
       _post('/api/groups/$groupId/transfer-ownership', {'userId': userId});
 
+  /// A one-time code (15 minutes) for a sibling who forgot their password.
+  Future<CodeResult> createPasswordReset(int groupId, int userId) async =>
+      CodeResult.fromJson(await _post('/api/groups/$groupId/members/$userId/password-reset'));
+
+  /// A parent's phone was lost: sign it out now; their data stays.
+  Future<void> signOutElderPhone(int groupId, int elderUserId) => _post('/api/groups/$groupId/elders/$elderUserId/sign-out');
+
   /// Removes a parent and erases their data; their phone is signed out.
   Future<void> removeElder(int groupId, int elderUserId) =>
       _ref.read(dioProvider).delete<void>('/api/groups/$groupId/elders/$elderUserId');

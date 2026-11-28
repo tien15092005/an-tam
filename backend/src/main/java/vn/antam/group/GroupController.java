@@ -96,6 +96,12 @@ public class GroupController {
         groups.transferOwnership(me, groupId, r.userId());
     }
 
+    @PostMapping("/groups/{groupId}/elders/{elderUserId}/sign-out")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void signOutElderPhone(@CurrentUser Long me, @PathVariable Long groupId, @PathVariable Long elderUserId) {
+        groups.signOutElderPhone(me, groupId, elderUserId);
+    }
+
     @DeleteMapping("/groups/{groupId}/elders/{elderUserId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void removeElder(@CurrentUser Long me, @PathVariable Long groupId, @PathVariable Long elderUserId) {

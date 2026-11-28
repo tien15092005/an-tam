@@ -157,6 +157,11 @@ public class MainActivity extends FlutterActivity {
         android.os.PowerManager pm = getSystemService(android.os.PowerManager.class);
         r.put("batteryUnrestricted", pm != null && pm.isIgnoringBatteryOptimizations(getPackageName()));
         r.put("microphone", checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED);
+        // Voice and fallback tone both play on the alarm stream: turned down, nothing is heard.
+        android.media.AudioManager am = getSystemService(android.media.AudioManager.class);
+        r.put("alarmVolume", am != null && !vn.antam.app.alarm.AlarmPolicy.volumeTooLow(
+                am.getStreamVolume(android.media.AudioManager.STREAM_ALARM),
+                am.getStreamMaxVolume(android.media.AudioManager.STREAM_ALARM)));
         // The voice can only be checked after the TTS engine has finished initialising, so answer in its callback.
         final TextToSpeech[] probe = new TextToSpeech[1];
         probe[0] = new TextToSpeech(this, status -> {
@@ -215,6 +220,22 @@ public class MainActivity extends FlutterActivity {
     }
 
     private void openSettings(String which) {
+        if ("volume".equals(which)) {
+            // No settings page needed: raise the alarm volume directly and show the system volume slider.
+            android.media.AudioManager am = getSystemService(android.media.AudioManager.class);
+            if (am != null) {
+                int max = am.getStreamMaxVolume(android.media.AudioManager.STREAM_ALARM);
+                try {
+                    am.setStreamVolume(android.media.AudioManager.STREAM_ALARM, vn.antam.app.alarm.AlarmPolicy.raisedVolume(max),
+                            android.media.AudioManager.FLAG_SHOW_UI);
+                } catch (SecurityException e) {
+                    // Do Not Disturb can forbid it; the slider below lets the family raise it by hand.
+                    am.adjustStreamVolume(android.media.AudioManager.STREAM_ALARM, android.media.AudioManager.ADJUST_SAME,
+                            android.media.AudioManager.FLAG_SHOW_UI);
+                }
+            }
+            return;
+        }
         Intent intent;
         Uri pkg = Uri.parse("package:" + getPackageName());
         if ("fullScreen".equals(which) && Build.VERSION.SDK_INT >= 34) {
@@ -227,6 +248,8 @@ public class MainActivity extends FlutterActivity {
             intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, pkg);
         } else if ("tts".equals(which)) {
             intent = new Intent("com.android.settings.TTS_SETTINGS");
+        } else if ("date".equals(which)) {
+            intent = new Intent(Settings.ACTION_DATE_SETTINGS);
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             intent = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName());
         } else {

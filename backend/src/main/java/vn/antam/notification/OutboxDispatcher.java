@@ -36,7 +36,7 @@ public class OutboxDispatcher {
         this.devices = devices;
         this.sender = sender;
         this.clock = clock;
-        // Event queued -> handed to FCM. Shown at /actuator/metrics/antam.notifications.latency.
+        // Event queued -> handed to FCM. Kept in the meter registry (not exposed over HTTP).
         this.latency = Timer.builder("antam.notifications.latency").description("Outbox entry created to sent")
                 .register(meters);
     }

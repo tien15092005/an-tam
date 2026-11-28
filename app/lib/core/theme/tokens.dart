@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// One set of colours. [AppColors] serves the light or dark one, following the phone's setting.
 class Palette {

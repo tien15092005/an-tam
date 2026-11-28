@@ -75,14 +75,9 @@ public class DoseSweeper {
      */
     public List<Long> sweep(Instant now) {
         List<Long> created = new ArrayList<>();
-        for (ElderProfile elder : elders.findAll()) {
+        for (ElderProfile elder : elders.findActive()) {
             try {
-                List<Long> ids = tx.execute(status -> {
-                    boolean active = members.findByGroupIdAndUserIdAndLeftAtIsNull(elder.getGroupId(), elder.getUserId())
-                            .filter(m -> m.getRole() == GroupRole.ELDER).isPresent()
-                            && groups.findById(elder.getGroupId()).filter(g -> !g.isDeleted()).isPresent();
-                    return active ? sweepElder(elder, now) : List.<Long>of();
-                });
+                List<Long> ids = tx.execute(status -> sweepElder(elder, now));
                 if (ids != null) created.addAll(ids);
             } catch (RuntimeException e) {
                 log.error("Not-confirmed check failed for elder {}; other families continue", elder.getUserId(), e);

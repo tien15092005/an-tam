@@ -52,7 +52,16 @@ public class FcmPushSender implements PushSender {
                 .setAndroidConfig(AndroidConfig.builder()
                         .setPriority(urgent || title == null ? AndroidConfig.Priority.HIGH : AndroidConfig.Priority.NORMAL)
                         .build());
-        if (title != null) m.setNotification(Notification.builder().setTitle(title).setBody(body).build());
+        if (title != null) {
+            m.setNotification(Notification.builder().setTitle(title).setBody(body).build());
+            // The lock screen shows only "An Tâm có thông báo mới"; names and medicines appear once unlocked.
+            m.setAndroidConfig(AndroidConfig.builder()
+                    .setPriority(urgent ? AndroidConfig.Priority.HIGH : AndroidConfig.Priority.NORMAL)
+                    .setNotification(com.google.firebase.messaging.AndroidNotification.builder()
+                            .setVisibility(com.google.firebase.messaging.AndroidNotification.Visibility.PRIVATE)
+                            .build())
+                    .build());
+        }
         try {
             messaging.send(m.build());
             return Result.SENT;

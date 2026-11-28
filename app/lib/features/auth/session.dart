@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../core/config/server_config.dart';
+import '../../core/network/api_client.dart';
 import '../../reminder/schedule_sync.dart';
 import '../groups/groups_api.dart';
 
@@ -143,6 +144,20 @@ class SessionNotifier extends AsyncNotifier<Session?> {
     } catch (_) {
       // Retried when the home screen opens.
     }
+  }
+
+  /// Changing the password signs out every other phone; this one gets a fresh session.
+  Future<void> changePassword(String current, String next) async {
+    final r = await ref.read(dioProvider).post<Map<String, dynamic>>(
+        '/api/me/password', data: {'currentPassword': current, 'newPassword': next, 'deviceName': 'Android'});
+    await _save(r.data!);
+  }
+
+  /// A forgotten password, with the one-time code a sibling created. Signs in on this phone.
+  Future<void> resetPassword(String email, String code, String next) async {
+    final r = await ref.read(authDioProvider).post<Map<String, dynamic>>(
+        '/api/auth/password-reset', data: {'email': email, 'code': code, 'newPassword': next, 'deviceName': 'Android'});
+    await _save(r.data!);
   }
 
   /// Exchanges the refresh token. Returns the new access token, or null if the session is over.
