@@ -34,9 +34,11 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+      # gradlew is not in Git (Flutter's default .gitignore); --config-only writes it without a full build.
+      - run: flutter build apk --debug --config-only
       - name: Alarm rules (JUnit)
         working-directory: app/android
-        run: chmod +x gradlew && ./gradlew -q :app:testDebugUnitTest
+        run: ./gradlew -q :app:testDebugUnitTest
 
   backend:
     name: Backend (Spring Boot)
