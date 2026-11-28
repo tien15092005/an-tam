@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/config/server_config.dart';
 import '../../core/network/api_client.dart';
+import '../auth/session.dart';
 
 enum GroupRole { owner, member, elder }
 
@@ -136,8 +137,12 @@ final meProvider = FutureProvider.autoDispose<Me>((ref) async {
     return me;
   } on DioException catch (e) {
     final cached = prefs.getString(_cachedMeKey);
-    // Only fall back when the server could not be reached, never when it answered with an error.
-    if (e.response == null && cached != null) return Me.fromJson(jsonDecode(cached) as Map<String, dynamic>);
+    // Fall back when the server could not be reached, or for an elder phone waiting to be paired again
+    // (it keeps showing its saved medicines). Never for other errors.
+    final waitingForPairing = ref.read(sessionProvider).value?.expired ?? false;
+    if ((e.response == null || waitingForPairing) && cached != null) {
+      return Me.fromJson(jsonDecode(cached) as Map<String, dynamic>);
+    }
     rethrow;
   }
 });

@@ -225,3 +225,16 @@ Trước đây máy kêu và đọc liên tục tới khi có người bấm, v�
 ## Chuông dự phòng khi thiếu giọng tiếng Việt (28/11/2026)
 
 Khi thử trên máy thật, máy không có giọng tiếng Việt nên báo thức chỉ rung và hiện màn hình, không có tiếng. Giờ máy phát chuông báo thức mặc định (lặp lại, luồng báo thức) thay cho giọng đọc, tạm dừng khi người già đang trả lời bằng giọng nói, và tắt cùng lúc với báo thức. Vẫn nên cài giọng tiếng Việt (Kiểm tra máy nhắc mục này) để máy đọc tên thuốc.
+
+## Sửa 2 lỗi nghiêm trọng từ bản review độc lập (28/11/2026)
+
+Xem `docs/REVIEW.md`, mục N1 và N2.
+
+- **N1, máy người già tự đăng xuất khi mạng chập chờn.**
+  - Máy chủ: token làm mới vừa được đổi mà gửi lại trong vòng 2 phút (`antam.jwt.refresh-reuse-grace`), và token thay thế chưa từng được dùng, thì hiểu là phản hồi bị mất. Máy chủ bỏ token thay thế đó và cấp cặp mới, không thu hồi mọi phiên. Gửi lại muộn hơn, hoặc sau khi token mới đã được dùng, vẫn bị coi là token bị đánh cắp. Migration V9 lưu token thay thế (`replaced_by`).
+  - App: máy người già bị máy chủ từ chối phiên thì **giữ nguyên lịch, báo thức và các câu trả lời chưa gửi**, hiện thẻ đỏ "Máy cần được ghép lại" và cho nhập mã mới. Nhập mã của cùng người già thì gửi tiếp các câu trả lời đang chờ; mã của người khác thì xóa dữ liệu cũ trước. Chỉ nút "Đăng xuất" mới xóa sạch máy. Hệ quả: máy cũ đã bị thay bằng máy mới vẫn nhắc theo lịch đã lưu, kèm thẻ đỏ.
+- **N2, một múi giờ sai làm hỏng cảnh báo của mọi gia đình.**
+  - Máy chủ từ chối múi giờ không hợp lệ (`invalid_timezone`). Migration V10 sửa các dòng cũ về `Asia/Ho_Chi_Minh`.
+  - Mọi chỗ đọc múi giờ dùng `ElderProfile.zone()`, gặp giá trị hỏng thì dùng múi giờ mặc định.
+  - Bước quét "chưa xác nhận" chạy mỗi người già trong một transaction riêng: một hồ sơ lỗi chỉ ghi log và bỏ qua, không chặn các gia đình khác.
+

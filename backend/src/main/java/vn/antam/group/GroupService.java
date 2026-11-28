@@ -136,6 +136,7 @@ public class GroupService {
     @Transactional
     public Member addElder(Long userId, Long groupId, ElderRequest r) {
         access.requireOwner(groupId, userId);
+        requireValidZone(r.timezone());
         Instant now = clock.instant();
         User elder = users.save(User.elder(r.callName().trim(), blankToNull(r.phone()), now));
         ElderProfile profile = new ElderProfile(elder.getId(), groupId);
@@ -149,6 +150,7 @@ public class GroupService {
     @Transactional
     public void updateElder(Long userId, Long groupId, Long elderUserId, ElderRequest r) {
         access.requireOwner(groupId, userId);
+        requireValidZone(r.timezone());
         ElderProfile profile = elderInGroup(groupId, elderUserId);
         profile.update(r.callName().trim(), r.birthYear(), blankToNull(r.phone()), blankToNull(r.healthNote()), r.timezone());
         users.findById(elderUserId).orElseThrow().rename(r.callName().trim(), blankToNull(r.phone()));
@@ -247,5 +249,12 @@ public class GroupService {
 
     private static String blankToNull(String s) {
         return s == null || s.isBlank() ? null : s.trim();
+    }
+
+    /** Blank keeps the default (or current) zone; anything else must be a real zone id. */
+    private static void requireValidZone(String timezone) {
+        if (timezone != null && !timezone.isBlank() && !ElderProfile.isValidZone(timezone)) {
+            throw ApiException.badRequest("invalid_timezone", "Múi giờ không hợp lệ. Ví dụ đúng: Asia/Ho_Chi_Minh.");
+        }
     }
 }

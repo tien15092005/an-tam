@@ -197,7 +197,7 @@ public class TodayService {
     }
 
     private Window load(ElderProfile elder, LocalDate from, LocalDate to) {
-        ZoneId zone = ZoneId.of(elder.getTimezone());
+        ZoneId zone = elder.zone();
         List<DoseLog> logs = doseLogs.findByElderUserIdAndScheduledDateBetweenOrderByScheduledDateAscScheduledTimeAsc(
                 elder.getUserId(), from, to);
         Map<String, ExerciseLog> exLogs = new HashMap<>();
@@ -250,7 +250,7 @@ public class TodayService {
     public MarkResult mark(Long userId, Long groupId, Long elderUserId, MarkRequest r) {
         access.requireCaregiver(groupId, userId);
         ElderProfile elder = elderInGroup(groupId, elderUserId);
-        ZoneId zone = ZoneId.of(elder.getTimezone());
+        ZoneId zone = elder.zone();
         LocalDateTime now = LocalDateTime.now(clock.withZone(zone));
         LocalTime time = LocalTime.parse(r.scheduledTime());
         LocalDateTime due = r.scheduledDate().atTime(time);
@@ -301,7 +301,7 @@ public class TodayService {
     public void undo(Long userId, Long groupId, Long elderUserId, Long doseLogId) {
         access.requireCaregiver(groupId, userId);
         ElderProfile elder = elderInGroup(groupId, elderUserId);
-        LocalDate today = LocalDate.now(clock.withZone(ZoneId.of(elder.getTimezone())));
+        LocalDate today = LocalDate.now(clock.withZone(elder.zone()));
         DoseLog log = doseLogs.findById(doseLogId).filter(d -> d.getElderUserId().equals(elderUserId))
                 .orElseThrow(() -> ApiException.notFound("ghi nhận"));
         if (!canUndo(log, today)) {

@@ -18,7 +18,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import vn.antam.group.ElderProfile;
 import vn.antam.group.ElderProfileRepository;
@@ -51,9 +52,11 @@ public class DoseSweeper {
     private final DoseLogRepository doseLogs;
     private final JdbcTemplate jdbc;
     private final Notifier notifier;
+    private final TransactionTemplate tx;
 
     public DoseSweeper(ElderProfileRepository elders, GroupMemberRepository members, FamilyGroupRepository groups,
-                       MedicationRepository medications, DoseLogRepository doseLogs, JdbcTemplate jdbc, Notifier notifier) {
+                       MedicationRepository medications, DoseLogRepository doseLogs, JdbcTemplate jdbc, Notifier notifier,
+                       PlatformTransactionManager transactions) {
         this.elders = elders;
         this.members = members;
         this.groups = groups;
@@ -61,24 +64,36 @@ public class DoseSweeper {
         this.doseLogs = doseLogs;
         this.jdbc = jdbc;
         this.notifier = notifier;
+        this.tx = new TransactionTemplate(transactions);
     }
 
-    /** @return ids of the alerts created by this run */
-    @Transactional
+    /**
+     * Each parent is checked in a transaction of their own: one broken profile is logged and skipped, and
+     * never stops the alerts of every other family.
+     *
+     * @return ids of the alerts created by this run
+     */
     public List<Long> sweep(Instant now) {
         List<Long> created = new ArrayList<>();
         for (ElderProfile elder : elders.findAll()) {
-            boolean active = members.findByGroupIdAndUserIdAndLeftAtIsNull(elder.getGroupId(), elder.getUserId())
-                    .filter(m -> m.getRole() == GroupRole.ELDER).isPresent()
-                    && groups.findById(elder.getGroupId()).filter(g -> !g.isDeleted()).isPresent();
-            if (active) created.addAll(sweepElder(elder, now));
+            try {
+                List<Long> ids = tx.execute(status -> {
+                    boolean active = members.findByGroupIdAndUserIdAndLeftAtIsNull(elder.getGroupId(), elder.getUserId())
+                            .filter(m -> m.getRole() == GroupRole.ELDER).isPresent()
+                            && groups.findById(elder.getGroupId()).filter(g -> !g.isDeleted()).isPresent();
+                    return active ? sweepElder(elder, now) : List.<Long>of();
+                });
+                if (ids != null) created.addAll(ids);
+            } catch (RuntimeException e) {
+                log.error("Not-confirmed check failed for elder {}; other families continue", elder.getUserId(), e);
+            }
         }
         if (!created.isEmpty()) log.info("Raised {} not-confirmed alert(s)", created.size());
         return created;
     }
 
     private List<Long> sweepElder(ElderProfile elder, Instant now) {
-        ZoneId zone = ZoneId.of(elder.getTimezone());
+        ZoneId zone = elder.zone();
         LocalDateTime nowLocal = LocalDateTime.ofInstant(now, zone);
         LocalDateTime from = LocalDateTime.ofInstant(now.minus(LOOK_BACK), zone);
         List<Medication> meds = medications.overlapping(elder.getUserId(), from.toLocalDate(), nowLocal.toLocalDate());

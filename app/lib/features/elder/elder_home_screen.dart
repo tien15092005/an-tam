@@ -169,6 +169,15 @@ class _ElderHomeScreenState extends ConsumerState<ElderHomeScreen> {
                         ]),
                       ),
                       const SizedBox(height: AppSpacing.lg),
+                      if (ref.watch(sessionProvider).value?.expired ?? false)
+                        _Banner(
+                          icon: Icons.link_off,
+                          color: AppColors.danger,
+                          background: AppColors.dangerSoft,
+                          text: 'Máy cần được ghép lại. Báo thức vẫn chạy theo lịch đã lưu. '
+                              'Nhờ con tạo mã mới rồi bấm vào đây để nhập.',
+                          onTap: () => context.push('/pair'),
+                        ),
                       if (readiness != null && !readiness.alarmsReady)
                         _Banner(
                           icon: Icons.warning_amber,

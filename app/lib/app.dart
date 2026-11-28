@@ -82,6 +82,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (session.isLoading) return null;
       final signedIn = session.value != null;
       if (!signedIn && !_publicRoutes.contains(here) && here != '/alarm') return '/welcome';
+      // An elder phone whose session expired may open the pairing screen to enter a new code.
+      if (signedIn && here == '/pair' && session.value!.expired) return null;
       if (signedIn && (here == '/welcome' || here == '/login' || here == '/pair')) return '/';
       return null;
     },

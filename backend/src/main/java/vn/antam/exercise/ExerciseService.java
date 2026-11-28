@@ -4,7 +4,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -194,7 +193,7 @@ public class ExerciseService {
     }
 
     private LocalDate today(ElderProfile elder) {
-        return LocalDate.now(clock.withZone(ZoneId.of(elder.getTimezone())));
+        return LocalDate.now(clock.withZone(elder.zone()));
     }
 
     static ExerciseResponse toResponse(Exercise e) {

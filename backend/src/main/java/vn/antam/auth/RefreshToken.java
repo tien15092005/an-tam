@@ -39,6 +39,10 @@ public class RefreshToken {
     @Column(name = "rotated_at")
     private Instant rotatedAt;
 
+    /** The token this one was exchanged for, so a lost refresh reply can be recognised (see TokenService). */
+    @Column(name = "replaced_by")
+    private Long replacedBy;
+
     protected RefreshToken() {
     }
 
@@ -74,9 +78,22 @@ public class RefreshToken {
         if (revokedAt == null) revokedAt = now;
     }
 
-    /** Exchanged for a new token during refresh. */
-    public void rotate(Instant now) {
-        rotatedAt = now;
+    public Instant getRotatedAt() {
+        return rotatedAt;
+    }
+
+    public Long getReplacedBy() {
+        return replacedBy;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    /** Exchanged for {@code next} during refresh. */
+    public void rotate(Instant now, Long next) {
+        if (rotatedAt == null) rotatedAt = now;
+        replacedBy = next;
         revoke(now);
     }
 }

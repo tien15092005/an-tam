@@ -224,6 +224,15 @@ class TodayTest extends IntegrationTest {
     }
 
     @Test
+    void aBrokenTimeZoneInOneFamilyDoesNotStopAlertsForOthers() throws Exception {
+        // A row saved before time zones were validated (another family's parent).
+        jdbc.update("UPDATE elder_profiles SET timezone = 'Asia/HoChiMinh' WHERE user_id <> ?", elderId);
+        jdbc.update("UPDATE elder_profiles SET timezone = 'Not/AZone' WHERE user_id = (SELECT min(user_id) FROM elder_profiles "
+                + "WHERE user_id <> ?)", elderId);
+        assertThat(sweeper.sweep(at(yesterday, "08:31")).stream().filter(this::mine).toList()).hasSize(1);
+    }
+
+    @Test
     void afterTheLaptopWasOffTheSweepCatchesUpButDoesNotRaiseAnsweredDoses() throws Exception {
         mvc.perform(json(as(elder, post("/api/me/dose-reports")),
                         elderReport(UUID.randomUUID(), yesterday, "08:00", "TAKEN", "NONE", null, amlodipin, metformin)))

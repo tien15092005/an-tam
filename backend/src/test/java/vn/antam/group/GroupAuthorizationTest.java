@@ -23,6 +23,9 @@ import vn.antam.IntegrationTest;
  */
 class GroupAuthorizationTest extends IntegrationTest {
 
+    @org.springframework.beans.factory.annotation.Autowired
+    org.springframework.jdbc.core.JdbcTemplate jdbc;
+
     Account owner;
     Account member;
     Account outsider;
@@ -162,10 +165,35 @@ class GroupAuthorizationTest extends IntegrationTest {
 
     @Test
     void refreshTokensRotateAndReplayRevokesEverySession() throws Exception {
-        MvcResult r = refresh(owner.refreshToken()).andExpect(status().isOk()).andReturn();
-        String rotated = read(body(r), "$.refreshToken");
-        refresh(owner.refreshToken()).andExpect(status().isUnauthorized()); // replay of the old token
-        refresh(rotated).andExpect(status().isUnauthorized());               // so the new one is revoked too
+        String second = read(body(refresh(owner.refreshToken()).andExpect(status().isOk()).andReturn()), "$.refreshToken");
+        String third = read(body(refresh(second).andExpect(status().isOk()).andReturn()), "$.refreshToken");
+        refresh(owner.refreshToken()).andExpect(status().isUnauthorized()); // replay after the next token was used
+        refresh(third).andExpect(status().isUnauthorized());                 // so every session is revoked
+    }
+
+    @Test
+    void aRefreshWhoseReplyWasLostCanBeSentAgainWithoutSigningTheElderOut() throws Exception {
+        // The reply carrying the second token never reached the phone (bad network), so it sends the first again.
+        String lost = read(body(refresh(elder.refreshToken()).andExpect(status().isOk()).andReturn()), "$.refreshToken");
+        String retried = read(body(refresh(elder.refreshToken()).andExpect(status().isOk()).andReturn()), "$.refreshToken");
+        refresh(lost).andExpect(status().isUnauthorized());     // the reply nobody received is dropped
+        refresh(retried).andExpect(status().isOk());            // the phone carries on
+    }
+
+    @Test
+    void aLateRetryOfAnOldRefreshTokenIsTreatedAsStolen() throws Exception {
+        String second = read(body(refresh(elder.refreshToken()).andExpect(status().isOk()).andReturn()), "$.refreshToken");
+        jdbc.update("UPDATE refresh_tokens SET rotated_at = rotated_at - interval '10 minutes' WHERE user_id = ? "
+                + "AND rotated_at IS NOT NULL", elderId);
+        refresh(elder.refreshToken()).andExpect(status().isUnauthorized());
+        refresh(second).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void anElderWithAnUnknownTimeZoneIsRejected() throws Exception {
+        mvc.perform(json(as(owner, post("/api/groups/" + groupId + "/elders")),
+                        "{\"callName\":\"Ông Ba\",\"timezone\":\"Asia/HoChiMinh\"}"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("invalid_timezone"));
     }
 
     @Test

@@ -5,7 +5,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -184,7 +183,7 @@ public class CareService {
     /** Yesterday's and today's logs, sent with the elder's schedule. */
     @Transactional(readOnly = true)
     public List<RecentDose> recentFor(ElderProfile elder) {
-        LocalDate today = LocalDate.now(clock.withZone(ZoneId.of(elder.getTimezone())));
+        LocalDate today = LocalDate.now(clock.withZone(elder.zone()));
         return doseLogs.findByElderUserIdAndScheduledDateBetweenOrderByScheduledDateAscScheduledTimeAsc(
                         elder.getUserId(), today.minusDays(1), today)
                 .stream().map(d -> new RecentDose(d.getMedicationId(), d.getScheduledDate(), hhmm(d.getScheduledTime()), d.getStatus()))
