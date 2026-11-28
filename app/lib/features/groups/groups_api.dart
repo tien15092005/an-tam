@@ -116,6 +116,10 @@ class GroupsApi {
   Future<void> transferOwnership(int groupId, int userId) =>
       _post('/api/groups/$groupId/transfer-ownership', {'userId': userId});
 
+  /// Removes a parent and erases their data; their phone is signed out.
+  Future<void> removeElder(int groupId, int elderUserId) =>
+      _ref.read(dioProvider).delete<void>('/api/groups/$groupId/elders/$elderUserId');
+
   Future<void> removeMember(int groupId, int userId) =>
       _ref.read(dioProvider).delete<void>('/api/groups/$groupId/members/$userId');
 

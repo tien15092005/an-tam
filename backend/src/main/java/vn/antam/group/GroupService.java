@@ -42,11 +42,12 @@ public class GroupService {
     private final Secrets secrets;
     private final TokenService tokens;
     private final AttemptLimiter limiter;
+    private final DataEraser eraser;
     private final Clock clock;
 
     public GroupService(FamilyGroupRepository groups, GroupMemberRepository members, ElderProfileRepository elders,
                         InviteRepository invites, UserRepository users, GroupAccess access, Secrets secrets,
-                        TokenService tokens, AttemptLimiter limiter, Clock clock) {
+                        TokenService tokens, AttemptLimiter limiter, DataEraser eraser, Clock clock) {
         this.groups = groups;
         this.members = members;
         this.elders = elders;
@@ -56,6 +57,7 @@ public class GroupService {
         this.secrets = secrets;
         this.tokens = tokens;
         this.limiter = limiter;
+        this.eraser = eraser;
         this.clock = clock;
     }
 
@@ -225,12 +227,32 @@ public class GroupService {
         }
     }
 
+    /** The last child leaves: the family and everything that identifies its parents is erased. */
     private void deleteGroup(Long groupId, Instant now) {
+        java.util.List<Long> elderIds = new java.util.ArrayList<>();
         for (GroupMember m : members.findByGroupIdAndLeftAtIsNullOrderByJoinedAt(groupId)) {
             m.leave(now);
-            if (m.getRole() == GroupRole.ELDER) tokens.revokeAll(m.getUserId());
+            if (m.getRole() == GroupRole.ELDER) elderIds.add(m.getUserId());
         }
         groups.findById(groupId).orElseThrow().delete(now);
+        members.flush();
+        eraser.eraseGroup(groupId, elderIds, now);
+    }
+
+    /**
+     * Removes one parent from the family and erases their data (e.g. a parent passed away), keeping the
+     * family and the other parent. Their phone is signed out.
+     */
+    @Transactional
+    public void removeElder(Long userId, Long groupId, Long elderUserId) {
+        access.requireOwner(groupId, userId);
+        GroupMember target = members.findByGroupIdAndUserIdAndLeftAtIsNull(groupId, elderUserId)
+                .filter(m -> m.getRole() == GroupRole.ELDER)
+                .orElseThrow(() -> ApiException.notFound("người già trong nhóm"));
+        Instant now = clock.instant();
+        target.leave(now);
+        members.flush();
+        eraser.eraseElder(groupId, elderUserId, now);
     }
 
     private ElderProfile elderInGroup(Long groupId, Long elderUserId) {

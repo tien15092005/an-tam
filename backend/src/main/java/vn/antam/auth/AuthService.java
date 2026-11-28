@@ -20,6 +20,7 @@ import vn.antam.user.UserRepository;
 public class AuthService {
 
     private static final Duration WINDOW = Duration.ofMinutes(10);
+    private static final String PAIR_FAILURES = "pair:fail:global";
 
     private final UserRepository users;
     private final InviteRepository invites;
@@ -66,16 +67,22 @@ public class AuthService {
 
     /**
      * Pairs an elder's phone with a 6-digit code. Codes are looked up by HMAC, so a wrong guess matches
-     * nothing; brute force is held back per IP and globally, plus the 15-minute expiry.
+     * nothing; brute force is held back per real client address (see ClientIp), by a global brake on wrong codes,
+     * and by the 15-minute expiry.
      */
     @Transactional
     public TokenService.TokenPair pairElderDevice(String code, String deviceName, String ip) {
         limiter.check("pair:ip:" + ip, 10, WINDOW);
-        limiter.check("pair:global", 300, WINDOW);
+        // A system-wide brake on wrong codes only (right codes never count), so ordinary pairing cannot be
+        // blocked by someone sending junk: it takes 1,000 wrong guesses in 10 minutes from many addresses.
+        limiter.requireUnder(PAIR_FAILURES, 1000, WINDOW);
         Instant now = clock.instant();
         Invite invite = invites.findFirstByKindAndCodeHashAndUsedAtIsNullAndExpiresAtAfter(
                         Invite.Kind.ELDER_DEVICE, secrets.hashCode(code), now)
-                .orElseThrow(() -> ApiException.badRequest("invalid_code", "Mã không đúng hoặc đã hết hạn. Nhờ con tạo mã mới."));
+                .orElseThrow(() -> {
+                    limiter.record(PAIR_FAILURES);
+                    return ApiException.badRequest("invalid_code", "Mã không đúng hoặc đã hết hạn. Nhờ con tạo mã mới.");
+                });
         User elder = users.findById(invite.getElderUserId()).orElseThrow(() -> ApiException.notFound("hồ sơ"));
         if (elder.isDisabled()) throw new ApiException(HttpStatus.FORBIDDEN, "account_disabled", "Tài khoản đã bị khóa.");
         invite.markUsed(elder.getId(), now);

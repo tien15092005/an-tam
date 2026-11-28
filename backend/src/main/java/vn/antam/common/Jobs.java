@@ -41,6 +41,13 @@ public class Jobs {
                 java.sql.Timestamp.from(clock.instant().minus(java.time.Duration.ofDays(30)))).forEach(images::delete);
     }
 
+    /** Delivered push texts repeat names and medicines; keep them a week for troubleshooting, then drop them. */
+    @Scheduled(initialDelayString = "PT3M", fixedDelayString = "PT6H")
+    void purgeOldNotifications() {
+        jdbc.update("DELETE FROM notification_outbox WHERE status <> 'PENDING' AND created_at < ?",
+                java.sql.Timestamp.from(clock.instant().minus(java.time.Duration.ofDays(7))));
+    }
+
     @Scheduled(initialDelayString = "PT10S", fixedDelayString = "PT1M")
     void sweepUnconfirmedDoses() {
         sweeper.sweep(clock.instant());
@@ -48,8 +55,9 @@ public class Jobs {
 
     @Scheduled(initialDelayString = "PT5S", fixedDelayString = "PT3S")
     void sendNotifications() {
-        while (dispatcher.dispatch() >= 50) {
-            // A full batch: more may be waiting.
+        // A full batch means more may be waiting; at most a few rounds so retries wait for the next tick.
+        for (int round = 0; round < 10 && dispatcher.dispatch() >= 50; round++) {
+            // keep going
         }
     }
 }

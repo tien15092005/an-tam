@@ -95,4 +95,21 @@ public abstract class IntegrationTest {
     protected static Long readId(String json, String path) {
         return ((Number) JsonPath.read(json, path)).longValue();
     }
+
+    protected String pairingCode(Account by, Long group, Long elderUser) throws Exception {
+        String code = read(body(mvc.perform(as(by, org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post(
+                        "/api/groups/" + group + "/elders/" + elderUser + "/pairing-code")))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isCreated())
+                .andReturn()), "$.code");
+        org.assertj.core.api.Assertions.assertThat(code).matches("[0-9]{6}");
+        return code;
+    }
+
+    protected Account pairElder(String code) throws Exception {
+        String json = body(mvc.perform(json(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/auth/elder-pair"),
+                        "{\"code\":\"" + code + "\",\"deviceName\":\"Test\"}"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk()).andReturn());
+        String token = read(json, "$.accessToken");
+        return new Account(meId(token), token, read(json, "$.refreshToken"));
+    }
 }

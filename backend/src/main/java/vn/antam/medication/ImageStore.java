@@ -12,10 +12,14 @@ import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
+import java.util.Iterator;
 import java.util.UUID;
 
 import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
+import javax.imageio.ImageReadParam;
+import javax.imageio.ImageReader;
+import javax.imageio.stream.ImageInputStream;
 import javax.imageio.ImageWriteParam;
 import javax.imageio.ImageWriter;
 import javax.imageio.stream.ImageOutputStream;
@@ -35,6 +39,9 @@ public class ImageStore {
 
     static final int MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
     private static final int MAX_EDGE = 1600;
+    /** A phone photo is 12–50 MP. Anything bigger is refused before decoding, so a tiny file that claims to be
+     * 50,000 × 50,000 px cannot make the server allocate gigabytes. */
+    static final long MAX_PIXELS = 60_000_000L;
 
     private final Path root;
 
@@ -53,13 +60,7 @@ public class ImageStore {
     public Stored save(byte[] upload) {
         if (upload == null || upload.length == 0) throw ApiException.badRequest("empty_file", "Chưa chọn ảnh.");
         if (upload.length > MAX_UPLOAD_BYTES) throw ApiException.badRequest("file_too_large", "Ảnh quá lớn (tối đa 5 MB).");
-        BufferedImage image;
-        try {
-            image = ImageIO.read(new ByteArrayInputStream(upload));
-        } catch (IOException e) {
-            image = null;
-        }
-        if (image == null) throw ApiException.badRequest("not_an_image", "Tệp không phải ảnh JPEG hoặc PNG.");
+        BufferedImage image = decode(upload);
         byte[] jpeg = toJpeg(scaleDown(image));
         String key = UUID.randomUUID() + ".jpg";
         try {
@@ -68,6 +69,39 @@ public class ImageStore {
             throw new UncheckedIOException(e);
         }
         return new Stored(key, "image/jpeg", jpeg.length, sha256(jpeg));
+    }
+
+    /** Reads the size from the header first, then decodes, skipping pixels when the photo is far larger than needed. */
+    static BufferedImage decode(byte[] upload) {
+        try (ImageInputStream in = ImageIO.createImageInputStream(new ByteArrayInputStream(upload))) {
+            Iterator<ImageReader> readers = in == null ? null : ImageIO.getImageReaders(in);
+            if (readers == null || !readers.hasNext()) throw notAnImage();
+            ImageReader reader = readers.next();
+            try {
+                reader.setInput(in, true, true);
+                long w = reader.getWidth(0);
+                long h = reader.getHeight(0);
+                if (w <= 0 || h <= 0) throw notAnImage();
+                if (w * h > MAX_PIXELS) {
+                    throw ApiException.badRequest("image_too_large", "Ảnh có độ phân giải quá lớn. Hãy chụp lại bằng camera thường.");
+                }
+                ImageReadParam param = reader.getDefaultReadParam();
+                int step = (int) Math.max(1, Math.max(w, h) / (MAX_EDGE * 2L));
+                if (step > 1) param.setSourceSubsampling(step, step, 0, 0);
+                BufferedImage image = reader.read(0, param);
+                if (image == null) throw notAnImage();
+                return image;
+            } finally {
+                reader.dispose();
+            }
+        } catch (IOException | RuntimeException e) {
+            if (e instanceof ApiException api) throw api;
+            throw notAnImage();
+        }
+    }
+
+    private static ApiException notAnImage() {
+        return ApiException.badRequest("not_an_image", "Tệp không phải ảnh JPEG hoặc PNG.");
     }
 
     public byte[] read(String key) {

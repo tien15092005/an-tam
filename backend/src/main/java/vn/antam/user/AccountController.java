@@ -54,38 +54,15 @@ public class AccountController {
             throw ApiException.forbidden("Tài khoản của bố mẹ do trưởng nhóm quản lý.");
         }
         if (!confirm) throw ApiException.conflict("confirm_required", "Xác nhận để xóa tài khoản và dữ liệu.");
-        Instant now = clock.instant();
         for (GroupMember m : members.findByUserIdAndLeftAtIsNull(me)) {
             Long groupId = m.getGroupId();
-            boolean lastCaregiver = m.getRole() == GroupRole.OWNER
-                    && members.countByGroupIdAndRoleInAndLeftAtIsNull(groupId, java.util.List.of(GroupRole.OWNER, GroupRole.MEMBER)) == 1;
-            java.util.List<Long> elders = lastCaregiver
-                    ? members.findByGroupIdAndLeftAtIsNullOrderByJoinedAt(groupId).stream()
-                            .filter(x -> x.getRole() == GroupRole.ELDER).map(GroupMember::getUserId).toList()
-                    : java.util.List.of();
-            groups.leave(me, groupId, true); // throws transfer_required for an owner with other caregivers
-            if (lastCaregiver) purgeGroup(groupId, elders, now);
+            // Throws transfer_required for an owner with other caregivers; the last child erases the family.
+            groups.leave(me, groupId, true);
         }
         jdbc.update("DELETE FROM devices WHERE user_id = ?", me);
+        jdbc.update("DELETE FROM notification_outbox WHERE user_id = ?", me);
         tokens.revokeAll(me);
         user.anonymize();
         return ResponseEntity.noContent().build();
-    }
-
-    /** The group is gone: its elders' names, phones, notes and medicine photos go too. */
-    private void purgeGroup(Long groupId, java.util.List<Long> elders, Instant now) {
-        Timestamp ts = Timestamp.from(now);
-        jdbc.update("""
-                UPDATE medication_images SET deleted_at = ? WHERE deleted_at IS NULL
-                  AND medication_id IN (SELECT id FROM medications WHERE group_id = ?)
-                """, ts, groupId);
-        jdbc.update("UPDATE medications SET active = false WHERE group_id = ?", groupId);
-        jdbc.update("UPDATE exercises SET active = false WHERE group_id = ?", groupId);
-        for (Long elderId : elders) {
-            users.findById(elderId).ifPresent(User::anonymize);
-            jdbc.update("UPDATE elder_profiles SET phone = NULL, health_note = NULL, call_name = 'Người dùng đã xóa' WHERE user_id = ?",
-                    elderId);
-            jdbc.update("DELETE FROM devices WHERE user_id = ?", elderId);
-        }
     }
 }

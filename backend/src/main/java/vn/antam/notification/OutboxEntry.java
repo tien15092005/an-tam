@@ -1,5 +1,6 @@
 package vn.antam.notification;
 
+import java.time.Duration;
 import java.time.Instant;
 
 import jakarta.persistence.Column;
@@ -18,7 +19,11 @@ public class OutboxEntry {
 
     public enum Status { PENDING, SENT, NO_DEVICE, DISABLED, FAILED }
 
-    public static final int MAX_ATTEMPTS = 5;
+    /** How long a delivery keeps being retried: an alert (urgent) much longer than a plain report. */
+    static final Duration URGENT_LIFETIME = Duration.ofHours(6);
+    static final Duration NORMAL_LIFETIME = Duration.ofHours(1);
+    static final Duration FIRST_RETRY = Duration.ofSeconds(10);
+    static final Duration MAX_RETRY = Duration.ofMinutes(10);
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -62,6 +67,10 @@ public class OutboxEntry {
     @Column(name = "sent_at")
     private Instant sentAt;
 
+    /** Not tried again before this time (null = now). */
+    @Column(name = "next_attempt_at")
+    private Instant nextAttemptAt;
+
     protected OutboxEntry() {
     }
 
@@ -83,11 +92,24 @@ public class OutboxEntry {
         this.sentAt = now;
     }
 
+    /**
+     * The push service could not take it: try again later, waiting longer each time (10 s, 20 s, 40 s ... up to
+     * 10 min), and give up only when the notification is too old to matter.
+     */
     public void failed(String error, Instant now) {
         this.attempts++;
         this.lastError = error == null ? null : error.substring(0, Math.min(error.length(), 200));
-        if (attempts >= MAX_ATTEMPTS) finish(Status.FAILED, now);
+        Duration lifetime = urgent ? URGENT_LIFETIME : NORMAL_LIFETIME;
+        if (!now.isBefore(createdAt.plus(lifetime))) {
+            finish(Status.FAILED, now);
+            return;
+        }
+        long factor = 1L << Math.min(attempts - 1, 16);
+        Duration wait = FIRST_RETRY.multipliedBy(factor);
+        nextAttemptAt = now.plus(wait.compareTo(MAX_RETRY) > 0 ? MAX_RETRY : wait);
     }
+
+    public Instant getNextAttemptAt() { return nextAttemptAt; }
 
     public Long getId() { return id; }
     public String getDedupeKey() { return dedupeKey; }

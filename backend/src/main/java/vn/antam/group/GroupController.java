@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import vn.antam.common.ClientIp;
 import vn.antam.auth.CurrentUser;
 import vn.antam.group.GroupDtos.AcceptInviteRequest;
 import vn.antam.group.GroupDtos.CodeResponse;
@@ -67,7 +68,7 @@ public class GroupController {
 
     @PostMapping("/invites/accept")
     public GroupSummary accept(@CurrentUser Long me, @Valid @RequestBody AcceptInviteRequest r, HttpServletRequest http) {
-        return groups.acceptInvite(me, r.code(), http.getRemoteAddr());
+        return groups.acceptInvite(me, r.code(), ClientIp.of(http));
     }
 
     @PostMapping("/groups/{groupId}/elders")
@@ -93,6 +94,12 @@ public class GroupController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void transfer(@CurrentUser Long me, @PathVariable Long groupId, @RequestBody TransferRequest r) {
         groups.transferOwnership(me, groupId, r.userId());
+    }
+
+    @DeleteMapping("/groups/{groupId}/elders/{elderUserId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void removeElder(@CurrentUser Long me, @PathVariable Long groupId, @PathVariable Long elderUserId) {
+        groups.removeElder(me, groupId, elderUserId);
     }
 
     @DeleteMapping("/groups/{groupId}/members/{userId}")

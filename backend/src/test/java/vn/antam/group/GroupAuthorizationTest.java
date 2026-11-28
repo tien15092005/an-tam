@@ -230,20 +230,6 @@ class GroupAuthorizationTest extends IntegrationTest {
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("email_taken"));
     }
 
-    private String pairingCode(Account by, Long group, Long elderUser) throws Exception {
-        String code = read(body(mvc.perform(as(by, post("/api/groups/" + group + "/elders/" + elderUser + "/pairing-code")))
-                .andExpect(status().isCreated()).andReturn()), "$.code");
-        assertThat(code).matches("\\d{6}");
-        return code;
-    }
-
-    private Account pairElder(String code) throws Exception {
-        String json = body(mvc.perform(json(post("/api/auth/elder-pair"), "{\"code\":\"" + code + "\",\"deviceName\":\"Test\"}"))
-                .andExpect(status().isOk()).andReturn());
-        String token = read(json, "$.accessToken");
-        return new Account(meId(token), token, read(json, "$.refreshToken"));
-    }
-
     private org.springframework.test.web.servlet.ResultActions refresh(String refreshToken) throws Exception {
         return mvc.perform(post("/api/auth/refresh").contentType(MediaType.APPLICATION_JSON)
                 .content("{\"refreshToken\":\"" + refreshToken + "\"}"));

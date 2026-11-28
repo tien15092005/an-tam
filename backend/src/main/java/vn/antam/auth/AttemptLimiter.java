@@ -41,6 +41,28 @@ public class AttemptLimiter {
         }
     }
 
+    /** Throws 429 if the key has used up its allowance, without counting this call. */
+    public void requireUnder(String key, int max, Duration window) {
+        Instant now = clock.instant();
+        Deque<Instant> q = attempts.get(key);
+        if (q == null) return;
+        synchronized (q) {
+            while (!q.isEmpty() && q.peekFirst().isBefore(now.minus(window))) q.pollFirst();
+            if (q.size() >= max) {
+                throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "too_many_attempts",
+                        "Hệ thống đang tạm khóa nhập mã vì có quá nhiều lần thử sai. Vui lòng đợi vài phút rồi thử lại.");
+            }
+        }
+    }
+
+    /** Counts one event (e.g. a wrong code) under the key. */
+    public void record(String key) {
+        Deque<Instant> q = attempts.computeIfAbsent(key, k -> new ArrayDeque<>());
+        synchronized (q) {
+            q.addLast(clock.instant());
+        }
+    }
+
     /** Forgets a key after success so a correct login doesn't count against the user. */
     public void reset(String key) {
         attempts.remove(key);

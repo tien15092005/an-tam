@@ -49,6 +49,44 @@ class GroupMembersView extends ConsumerWidget {
           }
         });
 
+    Future<void> elderMenu(GroupMember e) async {
+      final v = await showModalBottomSheet<String>(
+        context: context,
+        builder: (sheet) => SafeArea(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            ListTile(
+              leading: const Icon(Icons.phonelink_setup),
+              title: const Text('Lấy mã ghép máy'),
+              onTap: () => Navigator.pop(sheet, 'code'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.medication_outlined),
+              title: const Text('Xem thuốc'),
+              onTap: () => Navigator.pop(sheet, 'meds'),
+            ),
+            ListTile(
+              leading: Icon(Icons.person_remove_outlined, color: AppColors.danger),
+              title: Text('Xóa khỏi gia đình', style: TextStyle(color: AppColors.danger)),
+              onTap: () => Navigator.pop(sheet, 'remove'),
+            ),
+          ]),
+        ),
+      );
+      if (v == null || !context.mounted) return;
+      if (v == 'code') return showPairingCode(e);
+      if (v == 'meds') {
+        context.push('/groups/${group.id}/elders/${e.userId}/medications');
+        return;
+      }
+      final ok = await confirm(context,
+          title: 'Xóa ${e.displayName} khỏi gia đình?',
+          message: 'Hồ sơ, thuốc, ảnh thuốc và lịch sử uống thuốc của ${e.displayName} sẽ bị xóa. '
+              'Điện thoại của ${e.displayName} sẽ thôi nhắc. Không thể hoàn tác.',
+          action: 'Xóa vĩnh viễn');
+      if (!ok || !context.mounted) return;
+      await _run(context, ref, () => api.removeElder(group.id, e.userId), done: 'Đã xóa ${e.displayName}');
+    }
+
     Future<void> caregiverMenu(GroupMember c) async {
       final v = await showModalBottomSheet<String>(
         context: context,
@@ -109,7 +147,7 @@ class GroupMembersView extends ConsumerWidget {
                 subtitle: elderLine(e).isEmpty ? null : Text(elderLine(e)),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: owner
-                    ? () => showPairingCode(e)
+                    ? () => elderMenu(e)
                     : () => context.push('/groups/${group.id}/elders/${e.userId}/medications'),
               ),
             if (owner)

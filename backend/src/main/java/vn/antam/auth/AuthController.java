@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import vn.antam.common.ClientIp;
+
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
@@ -50,7 +52,7 @@ public class AuthController {
 
     @PostMapping("/login")
     public TokenService.TokenPair login(@Valid @RequestBody LoginRequest r, HttpServletRequest http) {
-        return auth.login(r.email(), r.password(), r.deviceName(), http.getRemoteAddr());
+        return auth.login(r.email(), r.password(), r.deviceName(), ClientIp.of(http));
     }
 
     @PostMapping("/refresh")
@@ -66,6 +68,6 @@ public class AuthController {
 
     @PostMapping("/elder-pair")
     public TokenService.TokenPair pairElder(@Valid @RequestBody ElderPairRequest r, HttpServletRequest http) {
-        return auth.pairElderDevice(r.code(), r.deviceName(), http.getRemoteAddr());
+        return auth.pairElderDevice(r.code(), r.deviceName(), ClientIp.of(http));
     }
 }

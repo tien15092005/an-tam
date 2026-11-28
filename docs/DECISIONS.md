@@ -238,3 +238,18 @@ Xem `docs/REVIEW.md`, mục N1 và N2.
   - Mọi chỗ đọc múi giờ dùng `ElderProfile.zone()`, gặp giá trị hỏng thì dùng múi giờ mặc định.
   - Bước quét "chưa xác nhận" chạy mỗi người già trong một transaction riêng: một hồ sơ lỗi chỉ ghi log và bỏ qua, không chặn các gia đình khác.
 
+## Sửa 4 lỗi mức cao C1–C4 từ bản review (28/11/2026)
+
+- **C1, giới hạn số lần thử thành giới hạn chung:**
+  - Máy chủ lấy địa chỉ thật của điện thoại từ header `CF-Connecting-IP` (`common/ClientIp`). Header này chỉ được tin khi request đến từ máy cục bộ (cloudflared hoặc gateway Docker), nên ai gọi thẳng từ ngoài cũng không giả được địa chỉ.
+  - Giới hạn chung khi ghép máy giờ chỉ đếm **mã sai**, tối đa 1.000 lần trong 10 phút. Gửi rác không còn chặn được các gia đình đang ghép máy đúng mã.
+- **C2, thông báo khẩn bị bỏ quá sớm:**
+  - Mỗi lần thử gửi lại chờ lâu hơn lần trước (10 giây, 20 giây, 40 giây... tối đa 10 phút). Cảnh báo khẩn được thử lại trong 6 giờ, báo cáo thường trong 1 giờ (V11 thêm `next_attempt_at`).
+  - Mỗi thông báo được gửi và lưu riêng: một thông báo lỗi không làm hủy các thông báo đã gửi, cũng không chặn các thông báo xếp sau.
+- **C3, ảnh nhỏ làm hết bộ nhớ:** máy chủ đọc kích thước ảnh từ phần đầu file trước khi giải mã. Ảnh trên 60 triệu điểm ảnh bị từ chối (`image_too_large`). Ảnh lớn hơn nhiều so với cần thiết thì đọc bỏ bớt điểm ảnh ngay khi giải mã.
+- **C4, xóa dữ liệu chưa đủ:**
+  - `group/DataEraser` xóa hoặc làm trống mọi chỗ còn tên và thông tin sức khỏe: hồ sơ (cả năm sinh), tên và ghi chú thuốc, tên trong lịch sử uống, tên thuốc trong cảnh báo, lịch sử chỉnh sửa, nội dung thông báo đẩy, bài tập. Ảnh thuốc được đánh dấu xóa.
+  - Dùng chung cho cả 3 trường hợp: xóa tài khoản, người con cuối cùng rời gia đình, và xóa riêng một người già.
+  - API mới `DELETE /api/groups/{id}/elders/{elderId}` cùng mục **"Xóa khỏi gia đình"** ở tab Gia đình: xóa một người già (ví dụ bố mất) mà vẫn giữ người kia, đồng thời đăng xuất máy của người đó.
+  - Thông báo đẩy đã gửi được tự xóa sau 7 ngày.
+
